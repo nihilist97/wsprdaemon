@@ -716,7 +716,7 @@ function get_wav_file_list() {
     local -ia target_seconds_list=( "${target_minutes_list[@]/%/*60}" ) ### Multiply the minutes of each mode by 60 to get the number of seconds of wav files needed to decode that mode  NOTE that both ' and " are needed for this to work
     local oldest_file_needed=${target_seconds_list[-1]}
 
-    wd_logger 2 "Start with args '${return_variable_name} ${receiver_name} ${receiver_band} ${receiver_modes}', then receiver_modes => ${target_modes_list[*]} => target_minutes=( ${target_minutes_list[*]} ) => target_seconds=( ${target_seconds_list[*]} )"
+    wd_logger 1 "Start with args '${return_variable_name} ${receiver_name} ${receiver_band} ${receiver_modes}', then receiver_modes => ${target_modes_list[*]} => target_minutes=( ${target_minutes_list[*]} ) => target_seconds=( ${target_seconds_list[*]} )"
     ### This code requires  that the list of wav files to be generated is in ascending seconds order, i.e "120 300 900 1800)
 
     if ! spawn_wav_recording_daemon ${receiver_name} ${receiver_band} ; then
@@ -725,12 +725,29 @@ function get_wav_file_list() {
         return ${ret_code}
     fi
 
-    local raw_file_list=( $( find -maxdepth 1 \( -name \*.wav -o -name \*.raw \) | sed 's/\.\///' | sort ) ) ### minute-*.raw *_usb.wav)        ### Get list of the one minute long 'raw' wav files being created by the Kiwi (.wav) or SDR ((.raw)
-    wd_logger 2 "Found ${#raw_file_list[@]} raw/wav files: '${raw_file_list[*]}'"
+    ### An instance of kiwirecorders run and outputs wav files in the same directory as decoding, i.e. /dev/shm/recording.d/KIWI_0/20/
+    ### There is one instance of the KA9Q stream recorder which outputs all wav files from the stream in the parent directory, i.e. /dev/shm/recording.d/KA9Q_0/
+    set +x
+    local wav_recording_dir=$(get_recording_dir_path ${receiver_name} ${receiver_band})
+    set +x
+
+    ### The wav files are created with names with diffent formats
+    local wav_file_regex
+    if [[ ${receiver_name} =~ ^KA9Q ]]; then
+        local band_freq_hz=$( get_wspr_band_freq_hz ${receiver_band}  )                    ### KA9Q's pcmreccord creates wav files with names which start with the tuning frequency in hz
+        wav_file_regex="${band_freq_hz}.*.wav"
+    else
+         wav_file_regex="*wav"                                                             ### kiwirrecorder creates files which start with the date and and in wav
+    fi
+    
+    set +x
+    local raw_file_list=( $( find ${wav_recording_dir} -maxdepth 1 -name "${wav_file_regex}"| sed 's/\.\///' | sort ) ) ### minute-*.raw *_usb.wav)        ### Get list of the one minute long 'raw' wav files being created by the Kiwi (.wav) or SDR ((.raw)
+    set +x
+    wd_logger 1 "Found ${#raw_file_list[@]} raw/wav files: '${raw_file_list[*]}'"
 
     case ${#raw_file_list[@]} in
         0 )
-            wd_logger 2 "There are no raw files.  Wait up to 10 seconds for the first file to appear"
+            wd_logger 1 "There are no raw files.  Wait up to 10 seconds for the first file to appear"
 
             declare WAIT_FOR_FIRST_WAV_SECS=10
             local timeout=0
@@ -743,12 +760,12 @@ function get_wav_file_list() {
             if [[ ${#raw_file_list[@]} -eq 0 ]]; then
                 wd_logger 1 "Timeout after ${timeout} seconds while waiting for the first wav file to appear"
             else
-                wd_logger 2 "First file appeared after waiting ${timeout} seconds"
+                wd_logger 1 "First file appeared after waiting ${timeout} seconds"
             fi
             return 1         ### Signal to  calling function to try again
             ;;
         1 )
-            wd_logger 2 "There is only 1 raw file ${raw_file_list[0]} which is for minute ${raw_file_list[0]:11:2}, but all modes need at least 2 one minute wav files. So wait for this file to be filled"
+            wd_logger 1 "There is only 1 raw file ${raw_file_list[0]} which is for minute ${raw_file_list[0]:11:2}, but all modes need at least 2 one minute wav files. So wait for this file to be filled"
             local ret_code
             sleep_until_raw_file_is_full ${raw_file_list[0]}
             ret_code=$?
@@ -756,7 +773,7 @@ function get_wav_file_list() {
                 wd_logger 1 "Error:  while waiting for the first  wav file to fill, 'sleep_until_raw_file_is_full ${raw_file_list[0]}' => ${ret_code} "
             else
                 if [[ -f ${raw_file_list[0]} ]]; then
-                    wd_logger 2 "First file '${raw_file_list[0]}' which is for minute ${raw_file_list[0]:11:2} is filled and good, but since there is only one good file return error 2"
+                    wd_logger 1 "First file '${raw_file_list[0]}' which is for minute ${raw_file_list[0]:11:2} is filled and good, but since there is only one good file return error 2"
                 else
                     wd_logger 1 "First file '${raw_file_list[0]}' was filled, but it was flushed"
                 fi
@@ -764,11 +781,12 @@ function get_wav_file_list() {
             return 2
             ;;
        * )
+            #wd_logger 1 "Found ${#raw_file_list[@]} files, so once this file is full we *may* have enough 1 minute wav files to make up a WSPR pkt. Wait until the last file is full, then proceed to process the list."
             # if there are more than 2 (or 3?) files, do not wait for the latest file, and remove it from the list. There are many older files need to be prcessed.
             if [[ ${#raw_file_list[@]} -gt 3 ]]; then
+                wd_logger 1 "Found ${#raw_file_list[@]} files, do not wait for the latest file, and remove it from the list, cause there are many older files need to be prcessed."
                 raw_file_list=("${raw_file_list[@]:0:${#raw_file_list[@]}-1}")
             else
-                #wd_logger 2 "Found ${#raw_file_list[@]} files, so once this file is full we *may* have enough 1 minute wav files to make up a WSPR pkt. Wait until the last file is full, then proceed to process the list."
                 sleep_until_raw_file_is_full ${raw_file_list[-1]}
                 local ret_code=$?
                 if [[ ${ret_code} -ne 0 ]]; then
@@ -781,6 +799,7 @@ function get_wav_file_list() {
             ;;
     esac
     wd_logger 1 "Found ${#raw_file_list[@]} full raw files, enough that we *may* have a set which can create a new pkt wav file. First clean the list of raw files"
+
 
     local clean_files_string
     cleanup_wav_file_list  clean_files_string "${raw_file_list[*]}"
@@ -1348,7 +1367,7 @@ function decoding_daemon() {
     local freq_adj_mhz=0
     if [[ ${receiver_name} =~ KA9Q || -n "${GPS_KIWIS-}"  && ${GPS_KIWIS} =~ ${receiver_name} ]] ; then
         ### One could learn if the Kiwi is GPS controlled from the Kiwi's status page
-        wd_logger 1 "No frequency adjustment for this KA9Q RX888 or GPS controlled Kiwi '${receiver_name}'"
+        wd_logger 2 "No frequency adjustment for this KA9Q RX888 or GPS controlled Kiwi '${receiver_name}'"
     elif [[ -n "${SPOT_FREQ_ADJ_HZ-.1}" ]]; then
         ### The default is to add 0.1 Hz to spot frequencies, or by the value of SPOT_FREQ_ADJ_HZ specified in the wsprdaemon.conf file
         local freq_adj_hz=${SPOT_FREQ_ADJ_HZ-.1}
@@ -1359,21 +1378,21 @@ function decoding_daemon() {
          wd_logger 1 " [[ ${receiver_name} =~ KA9Q || -n "${GPS_KIWIS-}"  && ${GPS_KIWIS} =~ ${receiver_name} ]] FAILED and [[ -n "${SPOT_FREQ_ADJ_HZ-.1}" ] FAILED so no frequency adjustment for this KIWI"
     fi
 
-    wd_logger 1 "Starting to search for raw or wav files from '${receiver_name}' tuned to WSPRBAND '${receiver_band}'"
+    wd_logger 1 "Starting to search for wav files from '${receiver_name}' tuned to WSPRBAND '${receiver_band}'"
     local decoded_spots=0             ### Maintain a running count of the total number of spots_decoded
     local old_wsprd_decoded_spots=0   ### If we are comparing the new wsprd against the old wsprd, then this will count how many were decoded by the old wsprd
 
-    local recording_dir=$(get_recording_dir_path ${receiver_name} ${receiver_band})
-    cd ${recording_dir}
+    local decoding_dir=$(get_decoding_dir_path ${receiver_name} ${receiver_band})
+    cd ${decoding_dir}
     local old_kiwi_ov_count=0
 
     local my_daemon_pid=$(< ${DECODING_DAEMON_PID_FILE})
     local proc_file=/proc/${my_daemon_pid}/status
     local VmRSS_val=$(awk '/VmRSS/{print $2}' ${proc_file})
     local last_rss_epoch
-    wd_logger 1 "At start VmRSS_val=${VmRSS_val} for my PID ${my_daemon_pid} was found in ${PWD}/${DECODING_DAEMON_PID_FILE}"
+    wd_logger 2 "At start VmRSS_val=${VmRSS_val} for my PID ${my_daemon_pid} was found in ${PWD}/${DECODING_DAEMON_PID_FILE}"
     if [[ -n "${VM_RSS_LOG_FILENAME-}" ]]; then
-        wd_logger 1 "Logging VmRSS_val for my PID ${my_daemon_pid} found in ${PWD}/${DECODING_DAEMON_PID_FILE} and finding VmRSS in ${proc_file} and logging it to ${VM_RSS_LOG_FILENAME-}"
+        wd_logger 2 "Logging VmRSS_val for my PID ${my_daemon_pid} found in ${PWD}/${DECODING_DAEMON_PID_FILE} and finding VmRSS in ${proc_file} and logging it to ${VM_RSS_LOG_FILENAME-}"
         printf "${WD_TIME_FMT}: %8d\n" -1 ${VmRSS_val} > ${VM_RSS_LOG_FILENAME}
         last_rss_epoch=${EPOCHSECONDS}
     fi
@@ -1385,6 +1404,7 @@ function decoding_daemon() {
 
     rm -f *.raw *.wav*
     shopt -s nullglob
+    wd_logger 1 "Looking for decoding client directories in ${PWD}/${DECODING_CLIENTS_SUBDIR}"
     while [[  -n "$(ls -A ${DECODING_CLIENTS_SUBDIR})" ]]; do    ### Keep decoding as long as there is at least one posting_daemon client
         VmRSS_val=$(awk '/VmRSS/{print $2}' ${proc_file} )
         wd_logger 2 "My PID ${my_daemon_pid} VmRSS_val=${VmRSS_val}"
@@ -1394,7 +1414,7 @@ function decoding_daemon() {
             last_rss_epoch=${EPOCHSECONDS}
         fi
 
-        wd_logger 2 "Asking for a list of MODE:WAVE_FILE... with: 'get_wav_file_list mode_wav_file_list ${receiver_name} ${receiver_band} ${receiver_modes}'"
+        wd_logger 1 "Asking for a list of MODE:WAVE_FILE... with: 'get_wav_file_list mode_wav_file_list ${receiver_name} ${receiver_band} ${receiver_modes}'"
         local ret_code
         local mode_seconds_files=""           ### This string will contain 0 or more space-seperated SECONDS:FILENAME_0[,FILENAME_1...] fields 
         get_wav_file_list mode_seconds_files  ${receiver_name} ${receiver_band} ${receiver_modes} ${wav_archive_dir}
@@ -2294,10 +2314,10 @@ function spawn_decoding_daemon() {
     local receiver_band=$2
     local receiver_modes=$3
     wd_logger 2 "Starting with args  '${receiver_name},${receiver_band},${receiver_modes}'"
-    local recording_dir=$(get_recording_dir_path ${receiver_name} ${receiver_band})
+    local decoding_dir=$(get_decoding_dir_path ${receiver_name} ${receiver_band})
 
-    mkdir -p ${recording_dir}/${DECODING_CLIENTS_SUBDIR}     ### The posting_daemon() should have created this already
-    cd ${recording_dir}
+    mkdir -p ${decoding_dir}/${DECODING_CLIENTS_SUBDIR}     ### The posting_daemon() should have created this already
+    cd ${decoding_dir}
     local decoding_pid
     if [[ -f ${DECODING_DAEMON_PID_FILE} ]] ; then
         local decoding_pid=$(< ${DECODING_DAEMON_PID_FILE})
@@ -2323,14 +2343,14 @@ function kill_decoding_daemon() {
 
     wd_logger 1 "Kill '${receiver_name},${receiver_band},${receiver_modes}'"
 
-    local recording_dir=$(get_recording_dir_path ${receiver_name} ${receiver_band})
+    local decoding_dir=$(get_decoding_dir_path ${receiver_name} ${receiver_band})
 
-    if [[ ! -d ${recording_dir} ]]; then
-        wd_logger 1 "ERROR: ${recording_dir} for '${receiver_name},${receiver_band},${receiver_modes}' does not exist"
+    if [[ ! -d ${decoding_dir} ]]; then
+        wd_logger 1 "ERROR: ${decoding_dir} for '${receiver_name},${receiver_band},${receiver_modes}' does not exist"
         return 1
     fi
 
-    local decoding_pid_file=${recording_dir}/${DECODING_DAEMON_PID_FILE}
+    local decoding_pid_file=${decoding_dir}/${DECODING_DAEMON_PID_FILE}
  
     if [[ ! -s ${decoding_pid_file} ]] ; then
         wd_logger 1 "ERROR: Decoding pid file '${decoding_pid_file} for '${receiver_name},${receiver_band},${receiver_modes}' does not exist or is empty"
@@ -2367,7 +2387,7 @@ function kill_decoding_daemon() {
 function get_decoding_status() {
     local get_decoding_status_receiver_name=$1
     local get_decoding_status_receiver_band=$2
-    local get_decoding_status_receiver_decoding_dir=$(get_recording_dir_path ${get_decoding_status_receiver_name} ${get_decoding_status_receiver_band})
+    local get_decoding_status_receiver_decoding_dir=$(get_decoding_dir_path ${get_decoding_status_receiver_name} ${get_decoding_status_receiver_band})
     local get_decoding_status_receiver_decoding_pid_file=${get_decoding_status_receiver_decoding_dir}/${DECODING_DAEMON_PID_FILE}
 
     if [[ ! -d ${get_decoding_status_receiver_decoding_dir} ]]; then
