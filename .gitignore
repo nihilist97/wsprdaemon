@@ -12,7 +12,6 @@ signal_levels
 suntimes
 wsprdaemon.log
 wsprdaemon.pid
-wsprdaemon.conf
 wsprdaemon.status
 proxy.pid
 noise_plot.log
