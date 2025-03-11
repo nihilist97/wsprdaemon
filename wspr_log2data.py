@@ -44,8 +44,6 @@ def filter_logs_by_date(log_file, target_date, log_type):
             for line in file:
                 if log_type == 'wspr':
                     # 处理 wspr 日志
-                    # 格式：250310 0012  0.44 -19  0.54   14.0971723 JA5NVN         PM74   30  0    2
-                    # 提取日期和时间部分
                     match = re.match(r'^(\d{2})(\d{2})(\d{2}) (\d{2})(\d{2})', line)
                     if match:
                         year = int(match.group(1)) + 2000  # 转换为 yyyy
@@ -56,7 +54,6 @@ def filter_logs_by_date(log_file, target_date, log_type):
                         log_datetime = datetime(year, month, day, hour, minute)
                         log_date_str = log_datetime.strftime('%Y%m%d')
                         if log_date_str == target_date:
-                            # 修改日期和时间部分为 yyyymmdd HH:mm:ss
                             new_line = re.sub(
                                 r'^(\d{6}) (\d{4})',
                                 log_datetime.strftime('%Y%m%d %H:%M:%S'),
@@ -65,7 +62,6 @@ def filter_logs_by_date(log_file, target_date, log_type):
                             filtered_lines.append(new_line.strip())
                 else:
                     # 处理 ft8/ft4 日志
-                    # 格式：2025/03/10 00:02:00  14 +0.80 28,074,246.9 ~ KD7SCC JL1IHE PM95
                     match = re.match(r'^(\d{4}/\d{2}/\d{2})', line)
                     if match:
                         log_date = match.group(1).replace('/', '')
@@ -76,12 +72,24 @@ def filter_logs_by_date(log_file, target_date, log_type):
 
     return filtered_lines
 
-def write_filtered_logs(filtered_lines, output_file):
+def write_filtered_logs(filtered_lines, output_file, log_type):
     """
-    将筛选的记录写入新文件
+    将筛选的记录写入新文件，并添加文件头
     """
     os.makedirs(os.path.dirname(output_file), exist_ok=True)  # 创建目录（如果不存在）
+    
+    # 定义不同日志类型的文件头
+    headers = {
+        'ft8': "year/mm/dd hh:mm:ss score sec    frequency   msg",
+        'ft4': "year/mm/dd hh:mm:ss score sec    frequency   msg",
+        'wspr': "yearmmdd hh:mm:ss  sync snr    dt    frequency callsign       loc  power drift type"
+    }
+    
     with open(output_file, 'w') as file:
+        # 写入文件头
+        if log_type in headers:
+            file.write(headers[log_type] + '\n')
+        
         for line in filtered_lines:
             file.write(line + '\n')
 
@@ -110,7 +118,7 @@ def main():
     output_file = os.path.join(output_dir, f'{log_type}_{site}_{date_str}.log')
 
     # 写入筛选的记录
-    write_filtered_logs(filtered_lines, output_file)
+    write_filtered_logs(filtered_lines, output_file, log_type)
     print(f"筛选的记录已写入 {output_file}")
 
 if __name__ == '__main__':
