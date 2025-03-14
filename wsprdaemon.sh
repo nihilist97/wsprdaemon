@@ -108,7 +108,8 @@ source ${WSPRDAEMON_ROOT_DIR}/job_management.sh
 source ${WSPRDAEMON_ROOT_DIR}/usage.sh
 source ${WSPRDAEMON_ROOT_DIR}/noise_graphs_daemon.sh
 source ${WSPRDAEMON_ROOT_DIR}/wav_archive.sh
-source ${WSPRDAEMON_ROOT_DIR}/grape-utils.sh
+#source ${WSPRDAEMON_ROOT_DIR}/grape-utils.sh
+source ${WSPRDAEMON_ROOT_DIR}/grape-utils-no-upload.sh
 source ${WSPRDAEMON_ROOT_DIR}/watchdog.sh         ### Should come last
 
 [[ -z "$*" ]] && usage
