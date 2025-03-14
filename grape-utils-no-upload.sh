@@ -188,7 +188,9 @@ function archive_24hour_wavs_to_data_dir() {
             # copy iq file to archive dir
             # original file name: 24_hour_10sps_iq.wav
             local band_name="${band_dir##*/}"           # WWV_10
-            archive_iq_file="${iq_archive_dir}/${reporter_info}_${band_name}_10sps_iq_${wav_date}.wav"
+            local freq_hz=$(get_wspr_band_freq_hz ${band_name} )
+            local freq_f=$(awk -v freq="$freq_hz" 'BEGIN { printf "%09.6f", freq / 1000000 }')
+            archive_iq_file="${iq_archive_dir}/${reporter_info}_${freq_f}_10sps_iq_${wav_date}.wav"
             cp ${band_24hour_wav_file} ${archive_iq_file}
             rc=$?
             if [[ ${rc} -ne 0 ]]; then
