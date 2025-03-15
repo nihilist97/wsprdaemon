@@ -194,7 +194,7 @@ function archive_24hour_wavs_to_data_dir() {
             cp ${band_24hour_wav_file} ${archive_iq_file}
             rc=$?
             if [[ ${rc} -ne 0 ]]; then
-                wd_logger 1 "ERROR: mv ${band_24hour_wav_file} ${archive_iq_file}"
+                wd_logger 1 "ERROR: cp ${band_24hour_wav_file} ${archive_iq_file}"
                 exit 1
                 return ${rc}
             else
@@ -421,7 +421,7 @@ function grape_get_date_status() {
     local date=$1
 
     if [[ "${date}" == "h" ]]; then
-        wd_logger 1 "usage: -S YYYYMMDD"
+        wd_logger 1 "usage: -S YYYYMMDD [Show the status of the files in that tree]"
         return 0
     fi
     local date_root_dir="${GRAPE_WAV_ARCHIVE_ROOT_PATH}/${date}"
@@ -583,7 +583,7 @@ function grape_repair_date_flacs() {
     local date=$1
 
     if [[ "${date}" == "h" ]]; then
-        wd_logger 1 "usage: -S YYYYMMDD"
+        wd_logger 1 "usage: -R YYYYMMDD [Repair the directory tree by filling in missing minutes with silent_iq.flac]"
         return 0
     fi
     local date_root_dir="${GRAPE_WAV_ARCHIVE_ROOT_PATH}/${date}"
@@ -730,7 +730,7 @@ function grape_create_24_hour_wavs() {
     local archive_date=$1
 
     if [[ "${archive_date}" == "h" ]]; then
-        wd_logger 1 "usage: -s yyyymmdd"
+        wd_logger 1 "usage: -C yyyymmdd [Create all bands 24 hour 10 Hz wav files for specified date]"
         return 0
     fi
     local current_date
@@ -758,9 +758,9 @@ function grape_create_24_hour_wavs() {
         if grape_return_code_is_error ${rc} ; then
              wd_logger 1 "ERROR: 'grape_create_wav_file ${band_dir}' => ${rc}"
         elif [[ ${rc} -eq 0 ]]; then
-            wd_logger 2 "Found existing 24h.wav file for band ${band_dir}"
+            wd_logger 1 "Found existing 24h.wav file in ${band_dir}"
         else
-            wd_logger 1 "Created a new 24h.wav file for band ${band_dir}"
+            wd_logger 1 "Created a new 24h.wav file in ${band_dir}"
             (( ++ new_wav_count ))
         fi
     done
@@ -848,13 +848,13 @@ function grape_uploader() {
     else
         wd_logger 1 "There were ${rc} new 24h.wav files created"
     fi
-#    grape_upload_all_local_wavs
-#    rc=$?
-#    if [[ ${rc} -ne 0 ]]; then
-#        wd_logger 1 "ERROR: grape_upload_all_local_wavs => ${rc}"
-#    else
-#        wd_logger 2 "Successful upload of  ${rc} new 24h.wav files"
-#    fi
+    grape_upload_all_local_wavs
+    rc=$?
+    if [[ ${rc} -ne 0 ]]; then
+        wd_logger 1 "ERROR: grape_upload_all_local_wavs => ${rc}"
+    else
+        wd_logger 2 "Successful upload of  ${rc} new 24h.wav files"
+    fi
     return ${rc}
 }
 
