@@ -325,7 +325,7 @@ function ka9q_recording_daemon()
 
     setup_verbosity_traps          ## So we can increment and decrement verbosity without restarting WD
 
-    wd_logger 1 "Start reecording pcm wav files from ${receiver_ip} on ${receiver_rx_freq_khz} KHz = ${receiver_rx_freq_hz} HZ"
+    wd_logger 1 "Start recording pcm wav files from ${receiver_ip} on ${receiver_rx_freq_khz} KHz = ${receiver_rx_freq_hz} HZ"
     local running_jobs_pid_list=()
     while    running_jobs_pid_list=( $( ps x | grep "${KA9Q_RADIO_WD_RECORD_CMD} -s ${receiver_rx_freq_hz} ${receiver_ip}" | grep -v grep | awk '{ print $1 }' ) ) \
           && [[ ${#running_jobs_pid_list[@]} -ne 0 ]] ; do
@@ -345,7 +345,7 @@ function ka9q_recording_daemon()
      ${KA9Q_RADIO_WD_RECORD_CMD} ${ka9q_verbosity_args} -s ${receiver_rx_freq_hz} ${receiver_ip} > wd-record.log 2>&1   ## wd-record prints to stderr, but we want it in wd-record.log
      rc=$?
      if [[ ${rc} -eq 0 ]]; then
-         wd_logger 1 "ERROR: Unexpectedly '${KA9Q_RADIO_WD_RECORD_CMD} ${KA9Q_RADIO_WD_RECORD_CMD} -s ${receiver_rx_freq_hz} ${receiver_ip}' terminated with no error"
+         wd_logger 1 "'${KA9Q_RADIO_WD_RECORD_CMD} -s ${receiver_rx_freq_hz} ${receiver_ip}' terminated with no error"
      else
          wd_logger 1 "ERROR: Unexpectedly '${KA9Q_RADIO_WD_RECORD_CMD} ${KA9Q_RADIO_WD_RECORD_CMD} -s ${receiver_rx_freq_hz} ${receiver_ip}' => ${rc}"
      fi
