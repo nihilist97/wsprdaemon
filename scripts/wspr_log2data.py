@@ -4,7 +4,9 @@ import sys
 import os
 import re
 import argparse
+import gzip
 from datetime import datetime, timedelta
+from glob import glob
 
 def parse_args():
     """
@@ -19,19 +21,7 @@ def parse_args():
     parser.add_argument('-t', '--type', help="日志类型（ft8, ft4, wspr），默认为 'ft8'", default='ft8')
     args = parser.parse_args()
 
-    # 如果未指定日期，则取前一天
-    if not args.date:
-        yesterday = datetime.now() - timedelta(days=1)
-        args.date = yesterday.strftime('%Y%m%d')  # 统一为 yyyymmdd 格式
-    else:
-        # 确保日期格式为 yyyymmdd
-        try:
-            datetime.strptime(args.date, '%Y%m%d')
-        except ValueError:
-            print("日期格式错误，请使用 yyyymmdd 格式")
-            sys.exit(1)
-
-    return args.date, args.site, args.type
+    return args
 
 def filter_logs_by_date(log_file, target_date, log_type):
     """
@@ -40,33 +30,39 @@ def filter_logs_by_date(log_file, target_date, log_type):
     filtered_lines = []
 
     try:
-        with open(log_file, 'r') as file:
-            for line in file:
-                if log_type == 'wspr':
-                    # 处理 wspr 日志
-                    match = re.match(r'^(\d{2})(\d{2})(\d{2}) (\d{2})(\d{2})', line)
-                    if match:
-                        year = int(match.group(1)) + 2000  # 转换为 yyyy
-                        month = int(match.group(2))
-                        day = int(match.group(3))
-                        hour = int(match.group(4))
-                        minute = int(match.group(5))
-                        log_datetime = datetime(year, month, day, hour, minute)
-                        log_date_str = log_datetime.strftime('%Y%m%d')
-                        if log_date_str == target_date:
-                            new_line = re.sub(
-                                r'^(\d{6}) (\d{4})',
-                                log_datetime.strftime('%Y%m%d %H:%M:%S'),
-                                line
-                            )
-                            filtered_lines.append(new_line.strip())
-                else:
-                    # 处理 ft8/ft4 日志
-                    match = re.match(r'^(\d{4}/\d{2}/\d{2})', line)
-                    if match:
-                        log_date = match.group(1).replace('/', '')
-                        if log_date == target_date:
-                            filtered_lines.append(line.strip())
+        if log_file.endswith('.gz'):
+            with gzip.open(log_file, 'rt') as file:
+                lines = file.readlines()
+        else:
+            with open(log_file, 'r') as file:
+                lines = file.readlines()
+
+        for line in lines:
+            if log_type == 'wspr':
+                # 处理 wspr 日志
+                match = re.match(r'^(\d{2})(\d{2})(\d{2}) (\d{2})(\d{2})', line)
+                if match:
+                    year = int(match.group(1)) + 2000  # 转换为 yyyy
+                    month = int(match.group(2))
+                    day = int(match.group(3))
+                    hour = int(match.group(4))
+                    minute = int(match.group(5))
+                    log_datetime = datetime(year, month, day, hour, minute)
+                    log_date_str = log_datetime.strftime('%Y%m%d')
+                    if log_date_str == target_date:
+                        new_line = re.sub(
+                            r'^(\d{6}) (\d{4})',
+                            log_datetime.strftime('%Y%m%d %H:%M:%S'),
+                            line
+                        )
+                        filtered_lines.append(new_line.strip())
+            else:
+                # 处理 ft8/ft4 日志
+                match = re.match(r'^(\d{4}/\d{2}/\d{2})', line)
+                if match:
+                    log_date = match.group(1).replace('/', '')
+                    if log_date == target_date:
+                        filtered_lines.append(line.strip())
     except FileNotFoundError:
         print(f"文件 {log_file} 不存在，跳过。")
 
@@ -95,18 +91,30 @@ def write_filtered_logs(filtered_lines, output_file, log_type):
 
 def main():
     # 解析命令行参数
-    date_str, site, log_type = parse_args()
+    args = parse_args()
 
-    # 根据日志类型定义日志文件路径
-    if log_type == 'ft8':
-        log_files = ['/var/log/ft8.log.1', '/var/log/ft8.log']
-    elif log_type == 'ft4':
-        log_files = ['/var/log/ft4.log.1', '/var/log/ft4.log']
-    elif log_type == 'wspr':
-        log_files = ['/var/log/wspr.log.1', '/var/log/wspr.log']
-    else:
-        print(f"未知的日志类型: {log_type}")
-        sys.exit(1)
+    site = args.site
+    log_type = args.type
+
+    log_files = [f'/var/log/{log_type}.log.1', f'/var/log/{log_type}.log']
+
+    yesterday = datetime.now() - timedelta(days=1)
+    date_str = yesterday.strftime('%Y%m%d')  # 统一为 yyyymmdd 格式
+
+    if args.date:
+        # 确保日期格式为 yyyymmdd
+        try:
+            datetime.strptime(args.date, '%Y%m%d')
+        except ValueError:
+            print("日期格式错误，请使用 yyyymmdd 格式")
+            sys.exit(1)
+        date_str = args.date
+
+        # 根据日志类型定义日志文件路径
+        log_files = glob(f'/var/log/{log_type}.log*')  # 获取所有符合日志类型的文件
+
+        # 按照文件修改时间从早到晚排序
+        log_files.sort(key=os.path.getmtime)
 
     # 筛选符合条件的记录
     filtered_lines = []
