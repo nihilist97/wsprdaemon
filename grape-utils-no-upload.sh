@@ -68,9 +68,19 @@ declare -r ARCHIVE_10SPS_COMPLETED_FILE_NAME='10sps_archive_completed'
 
 ### '-u ' sub menu
 function grape_upload_all_local_wavs() {
-   wd_logger 2 "Upload wav files not yet uploaded to the GRAPE server"
+    local upload_date=${1:-} # optianl parameter for archiving files of specified date 
 
-    local date_dir_list=( $( find -L ${GRAPE_WAV_ARCHIVE_ROOT_PATH} -mindepth 1 -maxdepth 1 -type d -name '20??????' | sort ) )   ## Follow symbolic link to /mnt/wd-archive/...
+    local date_dir_list
+
+    if [[ -z ${upload_date} ]]; then
+        date_dir_list=( $( find -L ${GRAPE_WAV_ARCHIVE_ROOT_PATH} -mindepth 1 -maxdepth 1 -type d -name '20??????' | sort ) )   ## Follow symbolic link to /mnt/wd-archive/...
+        wd_logger 1 "Archive/upload all bands 24 hour 10 Hz wav files for all date"
+    else
+        date_dir_list=( $( find -L ${GRAPE_WAV_ARCHIVE_ROOT_PATH} -mindepth 1 -maxdepth 1 -type d -name ${upload_date} | sort ) )   ## Follow symbolic link to /mnt/wd-archive/...
+        wd_logger 1 "Archive/upload all bands 24 hour 10 Hz wav files for ${upload_date}"
+    fi
+
+#    local date_dir_list=( $( find -L ${GRAPE_WAV_ARCHIVE_ROOT_PATH} -mindepth 1 -maxdepth 1 -type d -name '20??????' | sort ) )   ## Follow symbolic link to /mnt/wd-archive/...
     local date_dir
     for date_dir in ${date_dir_list[@]} ; do
         wd_logger 2 "Checking date_dir ${date_dir}"
@@ -80,16 +90,22 @@ function grape_upload_all_local_wavs() {
             wd_logger 2 "Checking site_dir ${site_dir}"
 # change to moving files to storage directory
 #            upload_24hour_wavs_to_grape_drf_server ${site_dir}
-             archive_24hour_wavs_to_data_dir ${site_dir}
+            if [[ -z ${upload_date} ]]; then
+                archive_24hour_wavs_to_data_dir ${site_dir}
+            else
+                archive_24hour_wavs_to_data_dir ${site_dir} ${upload_date}
+            fi
         done
     done
     wd_logger 2 "Completed"
 }
 
 ### new function for archiving 10sps iq data to local storage, instead of uploading to grape server
+### if $2 (upload_date) is specified, force to regenerate 10sps file
 function archive_24hour_wavs_to_data_dir() {
-    # /home/zw/wsprdaemon/wav-archive.d/20250312/N0HAQ_OL62ma/
-    local reporter_wav_root_dir=$( realpath $1 )
+    local reporter_wav_root_dir=$( realpath $1 )    # /home/zw/wsprdaemon/wav-archive.d/20250312/N0HAQ_OL62ma/
+    local upload_date=${2:-}  # optianl parameter for archiving files of specified date 
+
     wd_logger 2 "Upload bands for reporter ${reporter_wav_root_dir##*/}"
 
     if [[ ! -d ${reporter_wav_root_dir} ]]; then
@@ -100,18 +116,20 @@ function archive_24hour_wavs_to_data_dir() {
     local reporter_wav_root_dir_date="${reporter_wav_root_dir_list[-2]}"    # 20250312
     local current_date=$(TZ=UTC printf "%(%Y%m%d)T" -1)
     if [[ "${reporter_wav_root_dir_date}" == "${current_date}" ]]; then
-        wd_logger 2 "Skipping work on flac files for today's date ${current_date}"
+        wd_logger 1 "Skipping work on flac files for today's date ${current_date}"
         return 0
     fi
-    wd_logger 2 "On date '${current_date}' checking for date '${reporter_wav_root_dir_date}' bands which need a wav file to be created and then convert them to DRF and upload to the GRAPE server"
+    wd_logger 2 "On date '${current_date}' checking for date '${reporter_wav_root_dir_date}' bands which need a 10sps wav file to be created and archived"
 
     local reporter_archive_complete_file_name="${reporter_wav_root_dir}/${ARCHIVE_10SPS_COMPLETED_FILE_NAME}"
-
-    if [[ -f ${reporter_archive_complete_file_name} ]]; then
-        wd_logger 2  "File ${reporter_archive_complete_file_name} exists, so archive of 10sps wav files has already been successful"
-        return 0
+    # if $upload_date is not specified, files of all date are being uploaded, but before that the marker file is checked
+    if [[ -z ${upload_date:-} ]]; then
+        if [[ -f ${reporter_archive_complete_file_name} ]]; then
+            wd_logger 2  "File ${reporter_archive_complete_file_name} exists, so archive of 10sps wav files has already been successful"
+            return 0
+        fi
+        wd_logger 1 "File ${reporter_archive_complete_file_name} does not exist, so create the 10sps wav files and archive"
     fi
-    wd_logger 1 "File ${reporter_archive_complete_file_name} does not exist, so create the 10sps wav files and archive"
 
     ### On the WD client the flac and 24hour.wav files are cached in the non-volitile  file system which has the format:
     ### ...../wsprdaemon/wav-archive.d/<DATE>/<WSPR_REPORTER_ID>_<WSPR_REPORTER_GRID>/<WD_RECEIVER_NAME>@<PSWS_SITE_ID>_<PSWS_INSTRUMENT_NUMBER>/<BAND>
@@ -120,7 +138,6 @@ function archive_24hour_wavs_to_data_dir() {
     ### Each WSPR_REPORTER_ID+WSPR_REPORTER_GRID is associated with one or more WSPR_RECIEVER_NAMEs, and each of those will support one or more BANDS
     ###
 
-    # /home/zw/wsprdaemon/wav-archive.d/20250312/N0HAQ_OL62ma/
     local dir_path_list=( ${reporter_wav_root_dir//\// } )
     local wav_date=${dir_path_list[-2]}         # 20250312
     local reporter_info=${dir_path_list[-1]}    # N0HAQ_OL62ma
@@ -151,11 +168,11 @@ function archive_24hour_wavs_to_data_dir() {
         local wav_file_count=0
         local band_dir
         for band_dir in $( find -L ${receiver_dir} -mindepth 1 -type d ); do
-            if [[ ! "${band_dir}" =~ WWV|CHU|K_BEACON ]]; then
-                wd_logger 2 "Band '${band_dir}' is not a WWV or CHU band, so skip to next band"
+            if [[ ! "${band_dir}" =~ WWV|CHU|K_BEACON|DOP ]]; then
+                wd_logger 2 "Band '${band_dir}' is not a WWV|CHU|K_BEACON|DOP band, so skip to next band"
                 continue
             fi
-            wd_logger 2 "Checking WWV|CHU band dir ${band_dir}"
+            wd_logger 2 "Checking WWV|CHU|K_BEACON|DOP band dir ${band_dir}"
             local band_24hour_wav_file="${band_dir}/24_hour_10sps_iq.wav"
             if [[ -f ${band_24hour_wav_file} ]]; then
                  if soxi ${band_24hour_wav_file} | grep -q '864000 samples' ; then
@@ -165,7 +182,8 @@ function archive_24hour_wavs_to_data_dir() {
                      wd_rm ${band_24hour_wav_file}
                  fi
             fi
-            if !  [[ -f ${band_24hour_wav_file} ]]; then
+            #if !  [[ -f ${band_24hour_wav_file} ]]; then
+            if [[ ! -f ${band_24hour_wav_file} || ! -z ${upload_date} ]]; then
                 wd_logger 1 "Creating ${band_24hour_wav_file}"
                 grape_repair_band_flacs ${band_dir}
                 rc=$?
@@ -285,11 +303,11 @@ function upload_24hour_wavs_to_grape_drf_server() {
         local wav_file_count=0
         local band_dir
         for band_dir in $( find -L ${receiver_dir} -mindepth 1 -type d ); do
-            if [[ ! "${band_dir}" =~ WWV|CHU|K_BEACON ]]; then
-                wd_logger 2 "Band '${band_dir}' is not a WWV or CHU band, so skip to next band"
+            if [[ ! "${band_dir}" =~ WWV|CHU|K_BEACON|DOP ]]; then
+                wd_logger 2 "Band '${band_dir}' is not a WWV|CHU|K_BEACON|DOP band, so skip to next band"
                 continue
             fi
-            wd_logger 2 "Checking WWV|CHU band dir ${band_dir}"
+            wd_logger 2 "Checking WWV|CHU|K_BEACON|DOP band dir ${band_dir}"
             local band_24hour_wav_file="${band_dir}/24_hour_10sps_iq.wav"
             if [[ -f ${band_24hour_wav_file} ]]; then
                  if soxi ${band_24hour_wav_file} | grep -q '864000 samples' ; then
@@ -474,8 +492,8 @@ declare GRAPE_AUTO_DELETE_BAD_FLACS="${GRAPE_AUTO_DELETE_BAD_FLACS-yes}"
 function grape_repair_band_flacs() {
     local band_dir=$1
 
-    if [[ ! "${band_dir}" =~ WWV|CHU ]]; then
-        wd_logger 1 "Band '${band_dir}' is not a WWV or CHU band, so skip repairing"
+    if [[ ! "${band_dir}" =~ WWV|CHU|K_BEACON|DOP ]]; then
+        wd_logger 1 "Band '${band_dir}' is not a WWV|CHU|K_BEACON|DOP band, so skip repairing"
         return 0
     fi
     local flac_file_list=( $( find -L ${band_dir} -name '*.flac' | sort) )
@@ -635,12 +653,16 @@ function grape_check_tmp_size(){
 function grape_create_wav_file()
 {
     local flac_file_dir=$1
+    local archive_date=${2:-}
     local rc
 
     local output_10sps_wav_file="${flac_file_dir}/${GRAPE_24_HOUR_10_HZ_WAV_FILE_NAME}"
-    if [[ -f ${output_10sps_wav_file} ]]; then
-        wd_logger 2 "The 10 sps wav file ${output_10sps_wav_file} exists, so there is nothing to do in this directory"
-        return 0
+
+    if [[ -z ${archive_date} ]]; then
+        if [[ -f ${output_10sps_wav_file} ]]; then
+            wd_logger 2 "The 10 sps wav file ${output_10sps_wav_file} exists, so there is nothing to do in this directory"
+            return 0
+        fi
     fi
 
     local flac_file_list=()
@@ -727,7 +749,7 @@ function grape_create_wav_file()
 ### Searches all receivers and bands under 'date' for 24h wav files and creates them if needed
 ### Returns:  0 if date is today UTC or no 24 wav files were created, < 0 if there is an error, > 0 is the count of newly created wav files
 function grape_create_24_hour_wavs() {
-    local archive_date=$1
+    local archive_date=${1:-}
 
     if [[ "${archive_date}" == "h" ]]; then
         wd_logger 1 "usage: -C yyyymmdd [Create all bands 24 hour 10 Hz wav files for specified date]"
@@ -748,12 +770,12 @@ function grape_create_24_hour_wavs() {
     fi
     local new_wav_count=0
     local return_code=0
-    local band_dir_list=( $( find -L ${date_root_dir} -mindepth 3 -type d \( -name 'CHU*' -or -name 'WWV*' \) -printf '%p\n' | sort) )
+    local band_dir_list=( $( find -L ${date_root_dir} -mindepth 3 -type d \( -name 'CHU*' -or -name 'WWV*' -or -name 'K_BEACON*' -or -name 'DOP*' \) -printf '%p\n' | sort) )
     wd_logger 2 "found ${#band_dir_list[@]} bands"
     for band_dir in ${band_dir_list[@]} ; do
         wd_logger 2 "create 24 hour wav file in ${band_dir}"
         local rc
-        grape_create_wav_file ${band_dir}
+        grape_create_wav_file ${band_dir} ${archive_date}
         rc=$?
         if grape_return_code_is_error ${rc} ; then
              wd_logger 1 "ERROR: 'grape_create_wav_file ${band_dir}' => ${rc}"
@@ -832,7 +854,9 @@ function grape_uploader() {
 #         return 0
 #    fi
     local current_hhmm=$(TZ=UTC printf "%(%H%M)T")
-    if [[ ${LAST_HHMM} == "0" || ${current_hhmm} != ${LAST_HHMM} && ${current_hhmm} == ${GRAPE_UPLOAD_START_HHMM} ]]; then
+### only run at 0005 
+#    if [[ ${LAST_HHMM} == "0" || ${current_hhmm} != ${LAST_HHMM} && ${current_hhmm} == ${GRAPE_UPLOAD_START_HHMM} ]]; then
+    if [[ ${current_hhmm} == ${LAST_HHMM} || ${current_hhmm} != ${GRAPE_UPLOAD_START_HHMM} ]]; then
         wd_logger 1 "Skipping upload at current HHMM = ${current_hhmm}, LAST_HHMM = ${LAST_HHMM}"
         LAST_HHMM=${current_hhmm}
         return 0
@@ -924,9 +948,9 @@ function grape_menu() {
             grape_repair_all_dates_flacs
             ;;
         -u)
-            grape_upload_all_local_wavs
+            grape_upload_all_local_wavs ${2}
             ;;
-       -a)
+        -a)
             spawn_daemon ${2-0}
             ;;
         -A)
