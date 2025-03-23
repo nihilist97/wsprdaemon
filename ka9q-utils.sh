@@ -178,6 +178,8 @@ function wd_get_config_value() {
                         antenna_description="${receiver_line##*\#*ANTENNA:}"
                         shopt -s extglob
                         antenna_description="${antenna_description##+([[:space:]])}"    ### trim off leading white space
+                        antenna_description="${antenna_description%%+([[:space:]])}"  # trim off ending white space
+                        antenna_description="${antenna_description//[\"]}"            # remove all quates (")
                         wd_logger 2 "Found the description '${antenna_description}' in line: ${receiver_line}"
                     else
                         antenna_description="No antenna information"
@@ -329,8 +331,9 @@ function ka9q_conf_file_bw_check() {
 
 ### Parses the data fields in the first line with the word 'STAT' in it into the global associative array ka9q_status_list()
 declare KA9Q_MIN_LINES_IN_USEFUL_STATUS=20
-declare KA9Q_GET_STATUS_TRIES=5
-declare KA9Q_METADUMP_WAIT_SECS=${KA9Q_METADUMP_WAIT_SEC-5}       ### low long to wait for a 'metadump...&' to complete
+#declare KA9Q_GET_STATUS_TRIES=5
+declare KA9Q_GET_STATUS_TRIES=2
+declare KA9Q_METADUMP_WAIT_SECS=${KA9Q_METADUMP_WAIT_SEC-3}       ### low long to wait for a 'metadump...&' to complete
 declare -A ka9q_status_list=()
 
 ###  ka9q_get_metadump ${receiver_ip_address} ${receiver_freq_hz} ${status_log_file}
@@ -459,7 +462,8 @@ function ka9q_parse_status_value() {
 
 ### To avoid executing multiple calls to 'metadump' cache its ouput in ./ka9q_status.log.  Each channel needs one of these
 declare KA9Q_METADUMP_CACHE_FILE_NAME="./ka9q_status.log"
-declare MAX_KA9Q_STATUS_FILE_AGE_SECONDS=${MAX_KA9Q_STATUS_FILE_AGE_SECONDS-5 }
+#declare MAX_KA9Q_STATUS_FILE_AGE_SECONDS=${MAX_KA9Q_STATUS_FILE_AGE_SECONDS-5 }
+declare MAX_KA9Q_STATUS_FILE_AGE_SECONDS=${MAX_KA9Q_STATUS_FILE_AGE_SECONDS-55 }    # longer age for avoding frequent metadump calling
 
 function ka9q_get_current_status_value() {
     local __return_var="$1"
@@ -1446,6 +1450,7 @@ function install_github_project() {
 
 ### The GITHUB_PROJECTS_LIST[] entries define additional Linux services which may be installed and started by WD.  Each line has the form:
 ### "~/wsprdaemon/<SUBDIR> check_git_commit[yes/no]  start_service_after_installation[yes/no] service_specific_bash_installation_function_name  linux_libraries_needed_list(comma-seperated)   git_url   git_commit_wanted   
+declare KA9Q_RADIO_COMMIT="e73da07aa37c9d09b5627fbcb0658f327828f48c"
 declare GITHUB_PROJECTS_LIST=(
     "ka9q-radio        ${KA9Q_RADIO_COMMIT_CHECK-yes}   ${KA9Q_WEB_EABLED-yes}      build_ka9q_radio    ${KA9Q_RADIO_LIBS_NEEDED// /,}  ${KA9Q_RADIO_GIT_URL-https://github.com/ka9q/ka9q-radio.git}             ${KA9Q_RADIO_COMMIT-35df315189b22d80065009b93614ff323d9e38fa}"
     "ft8_lib           ${KA9Q_FT8_COMMIT_CHECK-yes}     ${KA9Q_FT8_EABLED-yes}      build_ka9q_ft8      NONE                            ${KA9Q_FT8_GIT_URL-https://github.com/ka9q/ft8_lib.git}                    ${KA9Q_FT8_COMMIT-66f0b5cd70d2435184b54b29459bb15214120a2c}"
