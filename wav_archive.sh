@@ -113,7 +113,7 @@ function queue_wav_file()
         fi
         return 1
     fi
-     wd_logger 1 "${queue_file_system_percent_used}% of the ${WAV_FILE_ARCHIVE_TMP_ROOT_DIR} file system is used, so there is space for ${source_wav_file_path}, so queue it"
+    wd_logger 1 "${queue_file_system_percent_used}% of the ${WAV_FILE_ARCHIVE_TMP_ROOT_DIR} file system is used, so there is space for ${source_wav_file_path}, so queue it"
 
     mkdir -p ${archive_dir}
 
