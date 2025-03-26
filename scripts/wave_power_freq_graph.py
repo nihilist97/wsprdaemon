@@ -130,8 +130,22 @@ def main():
     cmap='gnuplot'
     cmap='magma'
     extent = [0, 24, freq[0], freq[-1]]  # 设置横坐标范围为0~24小时，纵坐标范围为频率范围
-    im = ax2.imshow(np.log10(fft_spectra.T), vmin=2.5, vmax=5., aspect='auto', origin='lower', extent=extent, cmap=cmap)
     #im = ax2.imshow(fft_spectra.T, vmin=1E1, vmax=1E5, aspect='auto', origin='lower', extent=extent, cmap=cmap)
+    #im = ax2.imshow(np.log10(fft_spectra.T), vmin=2.5, vmax=5., aspect='auto', origin='lower', extent=extent, cmap=cmap)
+
+    im_data = np.log10(fft_spectra.T)
+
+    _range = np.max(im_data) - np.min(im_data)
+    im_data = (im_data - np.min(im_data)) / _range
+ 
+ 
+    p10 = np.percentile(im_data, 30)
+    p90 = np.percentile(im_data, 80)
+    # 按 0.5 的间隔取整
+    vmin = np.round(p10*1.1 * 10) / 10
+    vmax = np.round(p90*1.4 * 10) / 10
+    im = ax2.imshow(im_data, vmin=vmin, vmax=vmax, aspect='auto', origin='lower', extent=extent, cmap=cmap)
+
     ax2.set_xlabel('Time (Hours)')
     ax2.set_ylabel('Frequency (Hz)')
 
@@ -150,7 +164,10 @@ def main():
     # 设置 colorbar 的数值范围（可选，默认与 imshow 一致）
     #plt.clim(min_value, max_value)
 
+    plt.savefig( args.file+'.png', dpi=150, bbox_inches='tight')
+
     plt.show()
+
 
 if __name__ == "__main__":
     main()
