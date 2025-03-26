@@ -856,22 +856,35 @@ function grape_uploader() {
     local current_hhmm=$(TZ=UTC printf "%(%H%M)T")
 ### only run at 0005 
 #    if [[ ${LAST_HHMM} == "0" || ${current_hhmm} != ${LAST_HHMM} && ${current_hhmm} == ${GRAPE_UPLOAD_START_HHMM} ]]; then
-    if [[ ${current_hhmm} == ${LAST_HHMM} || ${current_hhmm} != ${GRAPE_UPLOAD_START_HHMM} ]]; then
+#    if [[ ${current_hhmm} == ${LAST_HHMM} || ${current_hhmm} != ${GRAPE_UPLOAD_START_HHMM} ]]; then
+    if [[ ${current_hhmm} == ${LAST_HHMM} ]]; then
         wd_logger 1 "Skipping upload at current HHMM = ${current_hhmm}, LAST_HHMM = ${LAST_HHMM}"
         LAST_HHMM=${current_hhmm}
         return 0
     fi
     LAST_HHMM=${current_hhmm}
-    wd_logger 1 "Checking for new 24h.wav files to upload"
+
+    yesterday=$(date -u -d "yesterday" +%Y%m%d)  # UTC 时间
+
+    wd_logger 1 "Checking for yesterday 24h.wav files to upload"
     local rc
 
-    grape_create_all_24_hour_wavs
+    grape_create_24_hour_wavs ${yesterday}
     rc=$?
     if  [[ ${rc} -eq 0 ]]; then
-        wd_logger 1 "There were no new 24h.wav files created"
+        wd_logger 1 "There were no yesterday 24h.wav files created"
     else
-        wd_logger 1 "There were ${rc} new 24h.wav files created"
+        wd_logger 1 "There were ${rc} yesterday 24h.wav files created"
     fi
+# following codes create *all* date files
+#    grape_create_all_24_hour_wavs
+#    rc=$?
+#    if  [[ ${rc} -eq 0 ]]; then
+#        wd_logger 1 "There were no new 24h.wav files created"
+#    else
+#        wd_logger 1 "There were ${rc} new 24h.wav files created"
+#    fi
+
     grape_upload_all_local_wavs
     rc=$?
     if [[ ${rc} -ne 0 ]]; then
@@ -879,6 +892,7 @@ function grape_uploader() {
     else
         wd_logger 2 "Successful upload of  ${rc} new 24h.wav files"
     fi
+
     return ${rc}
 }
 
