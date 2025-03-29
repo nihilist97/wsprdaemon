@@ -190,7 +190,7 @@ function archive_24hour_wavs_to_data_dir() {
                 if [[ ${rc} -ne 0 ]]; then
                     wd_logger 1 "WARNING: 'grape_repair_band_flacs ${band_dir}' => ${rc}"
                 fi
-                grape_create_wav_file  ${band_dir}
+                grape_create_wav_file  ${band_dir} ${upload_date}
                 rc=$?
                 if [[ ${rc} -ne 0 ]]; then
                     wd_logger 1 "WARNING: 'grape_create_wav_file ${band_dir}' => ${rc}"
@@ -660,7 +660,7 @@ function grape_create_wav_file()
 
     if [[ -z ${archive_date} ]]; then
         if [[ -f ${output_10sps_wav_file} ]]; then
-            wd_logger 2 "The 10 sps wav file ${output_10sps_wav_file} exists, so there is nothing to do in this directory"
+            wd_logger 1 "The 10 sps wav file ${output_10sps_wav_file} exists, so skip this directory"
             return 0
         fi
     fi
