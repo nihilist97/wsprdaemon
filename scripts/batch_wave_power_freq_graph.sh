@@ -10,8 +10,8 @@ else
 fi
 
 # 定义基础路径
-base_path="$HOME/10sps_iq_record/N0HAQ_OL62ma/$date"
-target_dir="$HOME/10sps_iq_record/N0HAQ_OL62ma"
+base_path="$HOME/10sps_iq_record/N0HAQ_OL62ti/$date"
+target_dir="$HOME/10sps_iq_record/N0HAQ_OL62ti"
 
 # 检查目录是否存在
 if [ ! -d "$base_path" ]; then
