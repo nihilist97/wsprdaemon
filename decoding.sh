@@ -1423,8 +1423,8 @@ function decoding_daemon() {
             ### Get the rx channel status and settings from the metadump output.  The return values have to be individually parsed, so I see only complexity in creating a subroutine for this
 
             local sucessful_get_status_value="no"
-            # Loop several times within 1 min to get metadump values: like 7*6 sec
-            # Once sucessful, the values are stored in a status file, which can be reused by the following variables without much time consumption.
+            # Loop several times within 1 min, like 7*6 sec, to get metadump values
+            # Once sucessful, the values are stored in a status file, which can be reused for the following variables without calling metadump again.
             local i=1
             while [[ $i -le 7 && ${sucessful_get_status_value} == "no" ]]; do
                 ka9q_get_current_status_value adc_overloads_count ${receiver_ip_address} ${receiver_freq_hz} "A/D overrange:"
@@ -1614,6 +1614,31 @@ function decoding_daemon() {
                 local new_channel_level=$(echo "scale=0; (${ka9q_channel_gain_float} + ${channel_level_adjust} )/1" | bc)
                 wd_logger 1 "A channel gain adjustment of ${channel_level_adjust} dB from ${ka9q_channel_gain_float} dB to ${new_channel_level} dB is needed"
 
+                # for WWV/CHU/DOP, the channel gain is fixed to the value set in /etc/radio/radiod@rx888-wsprdaemon.conf
+                # This will occur at the time of the first cycle in the following code.
+                if [[ ${receiver_band} =~ ^WWV|^CHU|^DOP ]]; then
+                    local radiod_conf_file_name
+                    ka9q-get-configured-radiod "radiod_conf_file_name"
+                    rc=$?
+                    if [[ ${rc} -ne 0 ]]; then
+                        wd_logger 1 "ERROR: can't find expected 'radiod_conf_file_name'"
+                    else
+                        wd_logger 2 "Found the radiod conf file is '${radiod_conf_file_name}'"
+                
+                        local conf_gain
+                        local sec_title="${receiver_band/_*/-IQ}"   # WWV_2_5 -> WWV-IQ
+                        get_conf_section_variable "conf_gain" ${radiod_conf_file_name} ${sec_title} "gain"
+                        rc=$?
+                        if [[ ${rc} -ne 0 ]]; then
+                            wd_logger 1 "ERROR: can't find section ${sec_title} value 'gain =' in '${radiod_conf_file_name}'"
+                        else
+                            wd_logger 1 "Found fixed 'gain = ${conf_gain}' for ${receiver_band} in '${radiod_conf_file_name}'"
+                            new_channel_level=${conf_gain}
+                        fi
+                    fi
+                fi
+
+
                 local change_channel_gain="yes"                    ### By default Channel gain AGC is applied to all channels at the end of each WSPR cycle, including to the WWV/CHU channels at the end of the first cycle
                 if [[  ${last_adc_overloads_count} -ne -1 ]]; then
                     ### This is WSPR cycle #2 or later
@@ -1625,6 +1650,8 @@ function decoding_daemon() {
                        if [[ ${KA9Q_WWV_CHANNEL_GAIN_ADJUSTMENT_ENABLED-no} == "no" ]]; then
                            if [[ $( echo "${sox_peak_dBFS_value} > ${KA9Q_WWV_CHANNEL_MAX_DBFS--6.0}" | bc ) == 1 ]]; then
                                 wd_logger 1 "Changes on this WWWV/CHU/DOP channel '${receiver_band}' are disabled, but the measured sox_peak_dBFS_value=${sox_peak_dBFS_value} is greater than the peak allowed value ${KA9Q_WWV_CHANNEL_MAX_DBFS--6.0}, so reduce the gain"
+                                # force to not change gain
+                                change_channel_gain="no"
                             else
                                 wd_logger 1 "Changes on this WWWV/CHU/DOP channel '${receiver_band}' are disabled after the first WSPR cycle and the measured sox_peak_dBFS_value=${sox_peak_dBFS_value} shows that the wav file isn't overranging"
                                 change_channel_gain="no"
