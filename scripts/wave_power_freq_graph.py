@@ -135,15 +135,14 @@ def main():
 
     im_data = np.log10(fft_spectra.T)
 
-    _range = np.max(im_data) - np.min(im_data)
-    im_data = (im_data - np.min(im_data)) / _range
+    #_range = np.max(im_data) - np.min(im_data)
+    #im_data = (im_data - np.min(im_data)) / _range
  
- 
-    p10 = np.percentile(im_data, 30)
-    p90 = np.percentile(im_data, 80)
+    p10 = np.percentile(im_data, 50)
+    p90 = np.percentile(im_data, 75)
     # 按 0.5 的间隔取整
     vmin = np.round(p10*1.1 * 10) / 10
-    vmax = np.round(p90*1.4 * 10) / 10
+    vmax = np.round(p90*1.6 * 10) / 10
     im = ax2.imshow(im_data, vmin=vmin, vmax=vmax, aspect='auto', origin='lower', extent=extent, cmap=cmap)
 
     ax2.set_xlabel('Time (Hours)')
