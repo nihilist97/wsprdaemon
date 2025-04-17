@@ -799,6 +799,7 @@ function get_wav_file_list() {
             ;;
     esac
     wd_logger 1 "Found ${#raw_file_list[@]} full raw files, enough that we *may* have a set which can create a new pkt wav file. First clean the list of raw files"
+#    wd_logger 1 "exiting..."; exit 1
 
 
     local clean_files_string
