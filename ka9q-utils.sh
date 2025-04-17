@@ -640,22 +640,7 @@ function ka9q_web_daemon() {
     if [[ ${rc} -ne 0 ]]; then
         wd_logger 1 "ERROR: failed to find the status DNS  => ${rc}"
     else
-
-        local web_title
-        get_config_file_variable "web_title"  "KA9Q_WEB_TITLE"
-        if [[ -n "${web_title:-}" ]]; then              ### note the ':-' syntax which expands to a null string if wd_title is undefined or empty
-            wd_logger 1 "KA9Q_WEB_TITLE is defined to '${web_title}' in WD.conf"
-        else
-            get_first_receiver_reporter "web_title"
-            if  [[ -n "${web_title:-}" ]]; then 
-                wd_logger 1 "KA9Q_WEB_TITLE will be set to the reporter id '${web_title}' of the first receiver in WD.conf"
-            else
-                web_title="WSPRDAEMON RX888"
-                wd_logger 1 "Couldn't find a reporter id in WD.conf, so KA9Q_WEB_TITLE is set to the default '${web_title}'"
-            fi
-        fi
-
-        ka9q_service_daemons_list[0]="${ka9q_radiod_status_dns} ${KA9Q_WEB_IP_PORT-8081} ${web_title}"         ### This is hack to get this one service imlmewntationb working
+        ka9q_service_daemons_list[0]="${ka9q_radiod_status_dns},${KA9Q_WEB_IP_PORT-8081},${KA9Q_WEB_TITLE-WD_RX888}"         ### This is hack to get this one service imlmewntationb working
 
         local i
         for (( i=0; i < ${#ka9q_service_daemons_list[@]}; ++i )); do
@@ -669,9 +654,9 @@ function ka9q_web_daemon() {
  }
 
 function ka9q_web_service_daemon() {
-    local status_dns_name=$1      ### Where to get the spectrum stream (e.g. hf.local)
-    local server_ip_port=$2       ### On what IP port to offer the UI
-    local web_page_title="$3" ### The description string at the top of the UI page
+    local status_dns_name=$1             ### Where to get the spectrum stream (e.g. hf.local)
+    local server_ip_port=$2              ### On what IP port to offer the UI
+    local server_description="${3//_/ }" ### The description string at the top of the UI page.  Change all '_' to ' '
 
     while true; do
         if [[ ! -x ${KA9Q_WEB_CMD} ]]; then
