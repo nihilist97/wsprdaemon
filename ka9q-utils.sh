@@ -541,7 +541,7 @@ function ka9q-get-conf-file-name() {
     ka9q_ps_line=$( ps aux | grep "sbin/radiod .*radiod@" | grep -v grep | head -n 14)
 
     if [[ -z "${ka9q_ps_line}" ]]; then
-        wd_logger 1 "The ka9q-web service is not running"
+        wd_logger 1 "The ka9q radiod service is not running"
         return 1
     fi
     local ka9q_pid_value
@@ -1451,6 +1451,7 @@ function install_github_project() {
 ### The GITHUB_PROJECTS_LIST[] entries define additional Linux services which may be installed and started by WD.  Each line has the form:
 ### "~/wsprdaemon/<SUBDIR> check_git_commit[yes/no]  start_service_after_installation[yes/no] service_specific_bash_installation_function_name  linux_libraries_needed_list(comma-seperated)   git_url   git_commit_wanted   
 declare KA9Q_RADIO_COMMIT="e73da07aa37c9d09b5627fbcb0658f327828f48c"
+declare KA9Q_WEB_COMMIT="4be1e98d5b4563dbe11a47b6f8e6ad3f6f66b754"
 declare GITHUB_PROJECTS_LIST=(
     "ka9q-radio        ${KA9Q_RADIO_COMMIT_CHECK-yes}   ${KA9Q_WEB_EABLED-yes}      build_ka9q_radio    ${KA9Q_RADIO_LIBS_NEEDED// /,}  ${KA9Q_RADIO_GIT_URL-https://github.com/ka9q/ka9q-radio.git}             ${KA9Q_RADIO_COMMIT-35df315189b22d80065009b93614ff323d9e38fa}"
     "ft8_lib           ${KA9Q_FT8_COMMIT_CHECK-yes}     ${KA9Q_FT8_EABLED-yes}      build_ka9q_ft8      NONE                            ${KA9Q_FT8_GIT_URL-https://github.com/ka9q/ft8_lib.git}                    ${KA9Q_FT8_COMMIT-66f0b5cd70d2435184b54b29459bb15214120a2c}"
