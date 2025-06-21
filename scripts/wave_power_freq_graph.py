@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 from matplotlib.ticker import MultipleLocator
+import math
 
 def calculate_power(iq_signal, window_size, step_size, sample_rate):
     """
@@ -142,7 +143,9 @@ def main():
     p90 = np.percentile(im_data, 75)
     # 按 0.5 的间隔取整
     vmin = np.round(p10*1.1 * 10) / 10
-    vmax = np.round(p90*1.6 * 10) / 10
+    #vmax = np.round(p90*1.6 * 10) / 10
+    vmax = np.round(p90*( pow(p10/2.2, 2.4) ) * 10) / 10
+    #print( vmin, vmax )
     im = ax2.imshow(im_data, vmin=vmin, vmax=vmax, aspect='auto', origin='lower', extent=extent, cmap=cmap)
 
     ax2.set_xlabel('Time (Hours)')
