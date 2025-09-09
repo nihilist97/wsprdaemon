@@ -1,0 +1,6 @@
+5 0 * * *               /home/zw/wsprdaemon/scripts/wspr_log2data.py -t ft8
+6 0 * * *               /home/zw/wsprdaemon/scripts/wspr_log2data.py -t ft4
+7 0 * * *               /home/zw/wsprdaemon/scripts/wspr_log2data.py -t wspr
+
+20 0 * * *              /home/zw/wsprdaemon/scripts/batch_wave_power_freq_graph.sh
+
