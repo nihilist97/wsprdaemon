@@ -16,7 +16,8 @@ target_dir="$HOME/10sps_iq_record/N0HAQ_OL62ti"
 # 检查目录是否存在
 if [ ! -d "$base_path" ]; then
     echo "目录不存在: $base_path"
-    exit 1
+    mkdir -p "$base_path"
+    #exit 1
 fi
 
 SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
