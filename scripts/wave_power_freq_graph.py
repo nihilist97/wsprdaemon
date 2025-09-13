@@ -6,8 +6,37 @@ import os, argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
+from scipy import stats
 from matplotlib.ticker import MultipleLocator
 import math
+
+from sklearn.cluster import KMeans
+
+def kmeans_separate_spectrum(im_data):
+
+    """
+    保证cluster0=暗背景，cluster1=亮前景的K-means分割
+    """
+    X = im_data.reshape(-1, 1)
+    kmeans = KMeans(n_clusters=2, random_state=42).fit(X)
+
+    # 强制排序聚类中心：cluster0=暗，cluster1=亮
+    if kmeans.cluster_centers_[0] > kmeans.cluster_centers_[1]:
+        labels = 1 - kmeans.labels_  # 反转标签
+    else:
+        labels = kmeans.labels_
+
+    threshold = np.mean(kmeans.cluster_centers_)
+    background = im_data[labels.reshape(im_data.shape) == 0]
+    foreground = im_data[labels.reshape(im_data.shape) == 1]
+
+    return {
+        'threshold': threshold,
+        'background': background,
+        'foreground': foreground,
+        'centers': sorted(kmeans.cluster_centers_.flatten())
+    }
+
 
 def calculate_power(iq_signal, window_size, step_size, sample_rate):
     """
@@ -64,10 +93,16 @@ def main():
     parser.add_argument('-s', '--sample_rate', type=int, help="手动指定采样率（Hz），如果不提供则从文件中读取")
     args = parser.parse_args()
 
-    # 读取wave文件
+    # 读取wave文件; 从文件中读取采样率和数据
+    wave_file = args.file
+    temp, extension = os.path.splitext( wave_file )
+    if extension == '.wav':
+        sample_rate, data = wavfile.read( wave_file )  # 从文件中读取采
+    if extension == '.flac':
+        data, sample_rate = soundfile.read( wave_file, dtype='int16')
+
     if args.sample_rate:
         sample_rate = args.sample_rate
-        data = wavfile.read(args.file)[1]  # 仅读取数据，忽略文件中的采样率
     else:
         sample_rate, data = wavfile.read(args.file)  # 从文件中读取采样率和数据
 
@@ -136,16 +171,18 @@ def main():
 
     im_data = np.log10(fft_spectra.T)
 
-    #_range = np.max(im_data) - np.min(im_data)
-    #im_data = (im_data - np.min(im_data)) / _range
- 
-    p10 = np.percentile(im_data, 50)
-    p90 = np.percentile(im_data, 75)
-    # 按 0.5 的间隔取整
-    vmin = np.round(p10*1.1 * 10) / 10
-    #vmax = np.round(p90*1.6 * 10) / 10
-    vmax = np.round(p90*( pow(p10/2.2, 2.4) ) * 10) / 10
-    #print( vmin, vmax )
+    cluster_result = kmeans_separate_spectrum(im_data) 
+    threshold = cluster_result['threshold']
+    foreground = cluster_result['foreground']
+    background = cluster_result['background']
+
+    p10 = np.nanpercentile(foreground, 10)
+    p90 = np.nanpercentile(foreground, 99) 
+    # 按 0.1 的间隔取整
+    vmin = round(p10, 1) * 1.0
+    vmax = round(p90, 1) * 1.05
+
+    print( vmin, vmax )
     im = ax2.imshow(im_data, vmin=vmin, vmax=vmax, aspect='auto', origin='lower', extent=extent, cmap=cmap)
 
     ax2.set_xlabel('Time (Hours)')
@@ -154,7 +191,8 @@ def main():
     ax2.xaxis.set_major_locator(MultipleLocator(1))  # 每小时一个主刻度
     ax2.grid(True, which='major', linestyle='--', color='grey', linewidth=0.5)  # 显示主网格
 
-    ax2.set_ylim(-3, 3)  # 设置纵坐标范围为-5~5 Hz
+    #ax2.set_ylim(-3, 3)  # 设置纵坐标范围为-5~5 Hz
+    ax2.set_ylim(-10, 10)  # 设置纵坐标范围为-5~5 Hz
 
     # 调整布局，为colorbar腾出空间
     plt.subplots_adjust(left=0.1, right=0.88, bottom=0.1, top=0.9, hspace=0.)  # 设置空白距离
