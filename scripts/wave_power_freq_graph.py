@@ -3,13 +3,13 @@
 # ./wave_power_freq_graph.py -w 1024 -s 10 -f ~/10sps_iq_record/N0HAQ_OL62ma/20250308/N0HAQ_OL62ma_WWV_10_10sps_iq_20250308.wav
 
 import os, argparse
+import math
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
+import soundfile
 from scipy.io import wavfile
 from scipy import stats
-from matplotlib.ticker import MultipleLocator
-import math
-
 from sklearn.cluster import KMeans
 
 def kmeans_separate_spectrum(im_data):
@@ -176,13 +176,13 @@ def main():
     foreground = cluster_result['foreground']
     background = cluster_result['background']
 
-    p10 = np.nanpercentile(foreground, 10)
+    p10 = np.nanpercentile(foreground, 50)
     p90 = np.nanpercentile(foreground, 99) 
     # 按 0.1 的间隔取整
-    vmin = round(p10, 1) * 1.0
-    vmax = round(p90, 1) * 1.05
+    vmin = round(p10 * 1.0, 1)
+    vmax = round(p10 + (p90-p10) * 1.5, 1)
 
-    print( vmin, vmax )
+    #print( vmin, vmax )
     im = ax2.imshow(im_data, vmin=vmin, vmax=vmax, aspect='auto', origin='lower', extent=extent, cmap=cmap)
 
     ax2.set_xlabel('Time (Hours)')
@@ -191,8 +191,8 @@ def main():
     ax2.xaxis.set_major_locator(MultipleLocator(1))  # 每小时一个主刻度
     ax2.grid(True, which='major', linestyle='--', color='grey', linewidth=0.5)  # 显示主网格
 
-    #ax2.set_ylim(-3, 3)  # 设置纵坐标范围为-5~5 Hz
-    ax2.set_ylim(-10, 10)  # 设置纵坐标范围为-5~5 Hz
+    ax2.set_ylim(-5, 5)  # 设置纵坐标范围为-5~5 Hz
+    #ax2.set_ylim(-10, 10)  # 设置纵坐标范围为-5~5 Hz
 
     # 调整布局，为colorbar腾出空间
     plt.subplots_adjust(left=0.1, right=0.88, bottom=0.1, top=0.9, hspace=0.)  # 设置空白距离
