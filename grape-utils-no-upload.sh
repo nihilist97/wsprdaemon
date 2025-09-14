@@ -25,8 +25,9 @@ declare -r WD_SILENT_FLAC_FILE_PATH="${WSPRDAEMON_ROOT_DIR}/silent_iq.flac"    #
 declare -r MINUTES_PER_DAY=$(( 60 * 24 ))
 declare -r HOURS_LIST=( $(seq -f "%02g" 0 23) )
 declare -r MINUTES_LIST=( $(seq -f "%02g" 0 59) )
-declare -r GRAPE_24_HOUR_10_HZ_WAV_FILE_NAME="24_hour_10sps_iq.wav"
+declare -r GRAPE_24_HOUR_10_HZ_WAV_FILE_NAME="24_hour_10sps_iq.flac" # "24_hour_10sps_iq.wav"
 declare -r GRAPE_24_HOUR_10_HZ_WAV_STATS_FILE_NAME="24_hour_10sps_iq.stats"
+declare -r iq_archive_dir="/home/zw/daily_iq_record"
 export     RSYNC_PASSWORD="${GRAPE_PSWS_PASSWORD-}"          ### This is the 'token' issued by the PSWS server which we use as the rsync password
 declare -r PSWS_URL="pswsnetwork.caps.ua.edu"
 
@@ -125,10 +126,10 @@ function archive_24hour_wavs_to_data_dir() {
     # if $upload_date is not specified, files of all date are being uploaded, but before that the marker file is checked
     if [[ -z ${upload_date:-} ]]; then
         if [[ -f ${reporter_archive_complete_file_name} ]]; then
-            wd_logger 2  "File ${reporter_archive_complete_file_name} exists, so archive of 10sps wav files has already been successful"
+            wd_logger 2  "File ${reporter_archive_complete_file_name} exists, so archive of daily wav files has already been successful"
             return 0
         fi
-        wd_logger 1 "File ${reporter_archive_complete_file_name} does not exist, so create the 10sps wav files and archive"
+        wd_logger 1 "File ${reporter_archive_complete_file_name} does not exist, so create the daily wav files and archive"
     fi
 
     ### On the WD client the flac and 24hour.wav files are cached in the non-volitile  file system which has the format:
@@ -145,8 +146,8 @@ function archive_24hour_wavs_to_data_dir() {
     local reporter_grid=${reporter_info#*_}     ### Chop off the REPROTER_ID to get the grid: OL62ma
 
     # create archive dir for the 10sps iq data files
-    local iq_archive_dir="/home/zw/10sps_iq_record/${reporter_info}/${wav_date}/"
-    mkdir -p ${iq_archive_dir}
+    local daily_iq_dir="${iq_archive_dir}/${reporter_info}/${wav_date}"
+    mkdir -p ${daily_iq_dir}
 
     ### Search each receiver for wav files
     local receiver_dir
@@ -173,12 +174,14 @@ function archive_24hour_wavs_to_data_dir() {
                 continue
             fi
             wd_logger 2 "Checking WWV|CHU|K_BEACON|DOP band dir ${band_dir}"
-            local band_24hour_wav_file="${band_dir}/24_hour_10sps_iq.wav"
+            #local band_24hour_wav_file="${band_dir}/24_hour_10sps_iq.wav"
+            local band_24hour_wav_file="${band_dir}/24_hour_10sps_iq.flac"
             if [[ -f ${band_24hour_wav_file} ]]; then
-                 if soxi ${band_24hour_wav_file} | grep -q '864000 samples' ; then
+                 #if soxi ${band_24hour_wav_file} | grep -q '864000 samples' ; then
+                 if soxi ${band_24hour_wav_file} | grep -q '8640000 samples' ; then
                      wd_logger 2 "Found a good existing ${band_24hour_wav_file}"
                   else
-                     wd_logger 1 "ERROR: Found wav file ${band_24hour_wav_file} doesn't have the expected 860,000 samples in a 10Hz 24 hour wav file, so deleting it"
+                     wd_logger 1 "ERROR: Found wav file ${band_24hour_wav_file} doesn't have the expected 8,640,000 samples in a 100Hz 24 hour wav file, so deleting it"
                      wd_rm ${band_24hour_wav_file}
                  fi
             fi
@@ -204,11 +207,10 @@ function archive_24hour_wavs_to_data_dir() {
             fi
 
             # copy iq file to archive dir
-            # original file name: 24_hour_10sps_iq.wav
             local band_name="${band_dir##*/}"           # WWV_10
             local freq_hz=$(get_wspr_band_freq_hz ${band_name} )
             local freq_f=$(awk -v freq="$freq_hz" 'BEGIN { printf "%09.6f", freq / 1000000 }')
-            archive_iq_file="${iq_archive_dir}/${reporter_info}_${freq_f}_10sps_iq_${wav_date}.wav"
+            archive_iq_file="${daily_iq_dir}/${reporter_info}_${freq_f}_daily_iq_${wav_date}.flac"
             cp ${band_24hour_wav_file} ${archive_iq_file}
             rc=$?
             if [[ ${rc} -ne 0 ]]; then
@@ -216,7 +218,7 @@ function archive_24hour_wavs_to_data_dir() {
                 exit 1
                 return ${rc}
             else
-                 wd_logger 1 "Archive one 10sps iq file to ${archive_iq_file}"
+                 wd_logger 1 "Archive one daily iq file to ${archive_iq_file}"
             fi
 
         done
@@ -226,7 +228,7 @@ function archive_24hour_wavs_to_data_dir() {
             continue
         fi
 
-        wd_logger 1  "Archiving 10sps iq data from ${wav_file_count} bands of wav files"
+        wd_logger 1  "Archiving daily iq data from ${wav_file_count} bands of wav files"
 
 
     done
@@ -313,7 +315,7 @@ function upload_24hour_wavs_to_grape_drf_server() {
                  if soxi ${band_24hour_wav_file} | grep -q '864000 samples' ; then
                      wd_logger 2 "Found a good existing ${band_24hour_wav_file}"
                   else
-                     wd_logger 1 "ERROR: Found wav file ${band_24hour_wav_file} doesn't have the expected 860,000 samples in a 10Hz 24 hour wav file, so deleting it"
+                     wd_logger 1 "ERROR: Found wav file ${band_24hour_wav_file} doesn't have the expected 864,000 samples in a 10Hz 24 hour wav file, so deleting it"
                      wd_rm ${band_24hour_wav_file}
                  fi
             fi
@@ -702,7 +704,7 @@ function grape_create_wav_file()
             return  ${GRAPE_ERROR_RETURN_REPAIR_FAILED}
         fi
     fi
-    wd_logger 1 "Creating one 24 hour, 10 hz wav file ${output_10sps_wav_file} from ${#flac_file_list[@]} flac files..."
+    wd_logger 1 "Creating one 24 hour, 100 hz wav file ${output_10sps_wav_file} from ${#flac_file_list[@]} flac files..."
     grape_check_tmp_size
     mkdir -p ${GRAPE_TMP_DIR}
     rm -rf ${GRAPE_TMP_DIR}/*     ## the -f suppresses an error when there are no files
@@ -730,7 +732,7 @@ function grape_create_wav_file()
 
     local sox_log_file_name="${flac_file_dir}/sox.log"
     ulimit -n 2048    ### sox will open 1440+ files, so up the open file limit
-    nice -n 19 sox ${wav_files_list[@]} ${output_10sps_wav_file} rate 10 >& ${sox_log_file_name}
+    nice -n 19 sox ${wav_files_list[@]} ${output_10sps_wav_file} rate 100 >& ${sox_log_file_name}
     rc=$?
     rm  ${wav_files_list[@]}
     if [[ ${rc} -ne 0 ]]; then
@@ -797,7 +799,7 @@ function grape_create_24_hour_wavs() {
      return ${new_wav_count}  
 }
 
-### '-c' Searches all the date/... direectories (execpt for today), repairs if necessary by adding silence files, then creates a 24 hour 10 hz wav file.
+### '-c' Searches all the date/... direectories (execpt for today), repairs if necessary by adding silence files, then creates a 24 hour 100 hz wav file.
 ###  Returns:  number of newly created wav files, or -1 if there was a failure
 function grape_create_all_24_hour_wavs(){
     local current_date
