@@ -2,5 +2,5 @@
 6 0 * * *               /home/zw/wsprdaemon/scripts/wspr_log2data.py -t ft4
 7 0 * * *               /home/zw/wsprdaemon/scripts/wspr_log2data.py -t wspr
 
+# /home/zw/wsprdaemon/wsprdaemon.sh -g "u 20250320" # produce daily flac file
 20 0 * * *              /home/zw/wsprdaemon/scripts/batch_wave_power_freq_graph.sh
-

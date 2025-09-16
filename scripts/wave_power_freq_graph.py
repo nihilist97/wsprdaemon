@@ -179,7 +179,7 @@ def main():
     p10 = np.nanpercentile(foreground, 50)
     p90 = np.nanpercentile(foreground, 99) 
     # 按 0.1 的间隔取整
-    vmin = round(p10 * 1.0, 1)
+    vmin = round(p10 * 1.1, 1)
     vmax = round(p10 + (p90-p10) * 1.5, 1)
 
     #print( vmin, vmax )

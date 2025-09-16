@@ -12,8 +12,8 @@ fi
 echo $date
 
 # 定义基础路径
-base_path="$HOME/10sps_iq_record/N0HAQ_OL62ti/$date"
-target_dir="$HOME/10sps_iq_record/N0HAQ_OL62ti"
+base_path="$HOME/daily_iq_record/N0HAQ_OL62ti/$date"
+target_dir="$HOME/daily_iq_record/N0HAQ_OL62ti"
 
 # 检查目录是否存在
 if [ ! -d "$base_path" ]; then
