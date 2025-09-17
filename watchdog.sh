@@ -25,6 +25,9 @@ function watchdog_daemon()
             spawn_upload_daemons
             # check_for_zombies
             start_or_kill_jobs a all
+
+            daemons_list_action  a watchdog_daemon_list
+
             purge_stale_recordings
             if [[ ${SIGNAL_LEVEL_LOCAL_GRAPHS-no} == "yes" ]] || [[ ${SIGNAL_LEVEL_UPLOAD_GRAPHS-no} == "yes" ]]; then
                 plot_noise 24
