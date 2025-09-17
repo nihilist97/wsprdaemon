@@ -15,7 +15,7 @@ Options:
 """
 from pskreporter import PskReporter
 import re
-from datetime import datetime, time, timezone
+from datetime import datetime, timedelta, time, timezone
 import subprocess
 from docopt import docopt
 import sys
@@ -35,7 +35,7 @@ def get_unix_timestamp(hhmm: str) -> int:
 
     # If the specified time is in the future, move to the previous day
     if specified_time > now:
-        specified_time -= datetime.timedelta(days=1)
+        specified_time -= timedelta(days=1)
 
     # Get the Unix timestamp
     unix_timestamp = int(specified_time.timestamp())
