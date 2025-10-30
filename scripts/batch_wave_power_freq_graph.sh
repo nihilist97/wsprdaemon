@@ -12,8 +12,8 @@ fi
 echo $date
 
 # 定义基础路径
-base_path="$HOME/daily_iq_record/N0HAQ_OL62ti/$date"
-target_dir="$HOME/daily_iq_record/N0HAQ_OL62ti"
+base_path="$HOME/site_data/ARCH/AQ_OL62ti/$date"
+target_dir="$HOME/site_data/ARCH/AQ_OL62ti"
 
 # 检查目录是否存在
 if [ ! -d "$base_path" ]; then
@@ -49,7 +49,7 @@ find "$base_path" -type f -name "*.wav" -o -name "*.flac"| while read -r wave_fi
         fi
 
         # 复制文件到目标文件夹
-        cp "$png_file" "$target_path"
+        mv "$png_file" "$target_path"
         echo "已复制文件: $png_file -> $target_path"
     else
         echo "警告: 未找到生成的 .png 文件: $png_file"
