@@ -170,7 +170,8 @@ function wd_archive_wavs()
 
     local wav_file_list=( $(find ${WAV_FILE_ARCHIVE_TMP_ROOT_DIR} -type f -name '*.flac') )
     if [[  ${#wav_file_list[@]} -ne 0 ]]; then
-        wd_logger 1 "ERROR: Found ${#wav_file_list[@]} zombie .flac files in ${WAV_FILE_ARCHIVE_TMP_ROOT_DIR}, so deleting them"
+        wd_logger 1 "ERROR: Found ${#wav_file_list[@]} zombie .flac files in ${WAV_FILE_ARCHIVE_TMP_ROOT_DIR}"
+        wd_logger 1 "ERROR: so deleting them: ${wav_file_list[@]}"
         wd_rm ${wav_file_list[@]}
     fi
 
@@ -230,9 +231,13 @@ function wd_archive_wavs()
 
         local rc
         flac ${flac_extra_args} --delete-input-file ${wav_file_path} >& flac.log
+        #flac ${flac_extra_args} ${wav_file_path} >& flac.log
         rc=$?
         if [[ ${rc} -ne 0 ]]; then
-            wd_logger 1 "ERROR: ' flac --silent --delete-input-file ${wav_file_path}' => ${rc}, so flush that wav file"
+            wd_logger 1 "ERROR: ' flac ${flac_extra_args} --delete-input-file ${wav_file_path}' => ${rc}, so flush that wav file"
+            #wd_logger 1 "ERROR: ' flac ${flac_extra_args} ${wav_file_path}' => ${rc}, so flush that wav file"
+            err=$(< flac.log)
+            wd_logger 1 "${err}"
             wd_rm ${wav_file_path}
             continue
         fi
