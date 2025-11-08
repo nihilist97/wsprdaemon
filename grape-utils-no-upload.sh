@@ -27,7 +27,7 @@ declare -r HOURS_LIST=( $(seq -f "%02g" 0 23) )
 declare -r MINUTES_LIST=( $(seq -f "%02g" 0 59) )
 declare -r GRAPE_24_HOUR_10_HZ_WAV_FILE_NAME="24_hour_10sps_iq.flac" # "24_hour_10sps_iq.wav"
 declare -r GRAPE_24_HOUR_10_HZ_WAV_STATS_FILE_NAME="24_hour_10sps_iq.stats"
-declare -r iq_archive_dir="/home/zw/daily_iq_record"
+declare -r iq_archive_dir="/home/zw/site_data/ARCH"
 export     RSYNC_PASSWORD="${GRAPE_PSWS_PASSWORD-}"          ### This is the 'token' issued by the PSWS server which we use as the rsync password
 declare -r PSWS_URL="pswsnetwork.caps.ua.edu"
 
@@ -146,7 +146,7 @@ function archive_24hour_wavs_to_data_dir() {
     local reporter_grid=${reporter_info#*_}     ### Chop off the REPROTER_ID to get the grid: OL62ma
 
     # create archive dir for the 10sps iq data files
-    local daily_iq_dir="${iq_archive_dir}/${reporter_info}/${wav_date}"
+    local daily_iq_dir="${iq_archive_dir}/${reporter_info:(-9)}/${wav_date}"
     mkdir -p ${daily_iq_dir}
 
     ### Search each receiver for wav files
@@ -210,7 +210,7 @@ function archive_24hour_wavs_to_data_dir() {
             local band_name="${band_dir##*/}"           # WWV_10
             local freq_hz=$(get_wspr_band_freq_hz ${band_name} )
             local freq_f=$(awk -v freq="$freq_hz" 'BEGIN { printf "%09.6f", freq / 1000000 }')
-            archive_iq_file="${daily_iq_dir}/${reporter_info}_${freq_f}_daily_iq_${wav_date}.flac"
+            archive_iq_file="${daily_iq_dir}/${reporter_info:(-9)}_wave_${freq_f}_${wav_date}_100Hz_000000.flac"
             cp ${band_24hour_wav_file} ${archive_iq_file}
             rc=$?
             if [[ ${rc} -ne 0 ]]; then
