@@ -66,6 +66,8 @@ def filter_logs_by_date(log_file, target_date, log_type):
     except FileNotFoundError:
         print(f"文件 {log_file} 不存在，跳过。")
 
+    print( "found %d records" % (len(filtered_lines)) )
+
     return filtered_lines
 
 def write_filtered_logs(filtered_lines, output_file, log_type):
@@ -119,6 +121,7 @@ def main():
     # 筛选符合条件的记录
     filtered_lines = []
     for log_file in log_files:
+        print( log_file )
         filtered_lines.extend(filter_logs_by_date(log_file, date_str, log_type))
 
     # 定义输出文件路径
