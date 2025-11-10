@@ -85,9 +85,11 @@ case ${CPU_ARCH} in
         wd_logger 2 "Installing on Ubuntu ${OS_RELEASE}"
         if [[ "${OS_RELEASE}" =~ 2[02].04 || "${OS_RELEASE}" == "12" || "${OS_RELEASE}" =~ 21.. ]]; then
             ### Ubuntu 22.04 and Debian doesn't use qt5-default
-            PACKAGE_NEEDED_LIST+=( python3-numpy libgfortran5:amd64 ${LIB_QT5_CORE_AMD64} )
+            #PACKAGE_NEEDED_LIST+=( python3-numpy libgfortran5:amd64 ${LIB_QT5_CORE_AMD64} )
+            PACKAGE_NEEDED_LIST+=( libgfortran5:amd64 ${LIB_QT5_CORE_AMD64} )
         elif [[ "${OS_RELEASE}" =~ 24.04 ]]; then
-            PACKAGE_NEEDED_LIST+=( libhdf5-dev  python3-matplotlib libgfortran5:amd64 python3-dev libpq-dev python3-psycopg2 ${LIB_QT5_CORE_UBUNTU_24_04})
+            #PACKAGE_NEEDED_LIST+=( libhdf5-dev python3-matplotlib libgfortran5:amd64 python3-dev libpq-dev python3-psycopg2 ${LIB_QT5_CORE_UBUNTU_24_04})
+            PACKAGE_NEEDED_LIST+=( libhdf5-dev libgfortran5:amd64 python3-dev libpq-dev python3-psycopg2 ${LIB_QT5_CORE_UBUNTU_24_04})
         elif grep -q 'Linux Mint' /etc/os-release; then
             PACKAGE_NEEDED_LIST+=( libgfortran5:amd64 python3-psycopg2 python3-numpy ${LIB_QT5_LINUX_MINT} )
         else
@@ -283,7 +285,8 @@ function check_for_kiwirecorder_cmd() {
                 echo "Found unknown error in ${log_file} when running 'python3 ${KIWI_RECORD_COMMAND}'"
                 exit 1
             fi
-            if sudo apt install python3-numpy ; then
+            #if sudo apt install python3-numpy ; then
+            if pip3 install numpy; then 	# only use pip pkg, since apt pkg cause some errors
                 echo "Successfully installed numpy"
             else
                 echo "'sudo apt install python3-numpy' failed to install numpy"
@@ -292,10 +295,11 @@ function check_for_kiwirecorder_cmd() {
                     exit 1
                 fi
                 echo "Installation command 'pip3 install numpy' was successful"
-                if ! python3 ${KIWI_RECORD_COMMAND} --help >& ${log_file} ; then
-                    echo "Currently installed version of kiwirecorder.py fails to run even after installing module numpy"
-                    exit 1
-                fi
+            fi
+
+            if ! python3 ${KIWI_RECORD_COMMAND} --help >& ${log_file} ; then
+                echo "Currently installed version of kiwirecorder.py fails to run even after installing module numpy"
+                exit 1
             fi
         fi
         ### kwirecorder.py ran successfully
