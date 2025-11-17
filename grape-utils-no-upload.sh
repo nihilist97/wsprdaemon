@@ -146,7 +146,7 @@ function archive_24hour_wavs_to_data_dir() {
     local reporter_grid=${reporter_info#*_}     ### Chop off the REPROTER_ID to get the grid: OL62ma
 
     # create archive dir for the 10sps iq data files
-    local daily_iq_dir="${iq_archive_dir}/${reporter_info:(-9)}/${wav_date}"
+    local daily_iq_dir="${iq_archive_dir}/${reporter_info:(-9)}_daily/${wav_date}"
     mkdir -p ${daily_iq_dir}
 
     ### Search each receiver for wav files
