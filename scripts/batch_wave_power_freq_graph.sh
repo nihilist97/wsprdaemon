@@ -12,8 +12,8 @@ fi
 echo $date
 
 # 定义基础路径
-base_path="$HOME/site_data/ARCH/AQ_OL62ti/$date"
-target_dir="$HOME/site_data/ARCH/AQ_OL62ti"
+base_path="$HOME/site_data/ARCH/AQ_OL62ti_daily/$date"
+target_dir="$HOME/site_data/ARCH/AQ_OL62ti_daily"
 
 # 检查目录是否存在
 if [ ! -d "$base_path" ]; then
