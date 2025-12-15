@@ -76,6 +76,11 @@ function pull_commit(){
     ### desired COMMIT SHA was specified
     local git_root="main"  ### Now github's default.  older projects like wsprdaemon have the root 'master'
     local current_commit_sha
+
+    if [[ ${git_project} =~ ft8_lib|other_git_project ]]; then
+        git_root="master"
+    fi
+
     get_current_commit_sha current_commit_sha ${git_directory}
     rc=$?
     if [[ ${rc} -ne 0 ]]; then
