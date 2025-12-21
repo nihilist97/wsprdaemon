@@ -30,6 +30,8 @@ def kmeans_separate_spectrum(im_data):
     background = im_data[labels.reshape(im_data.shape) == 0]
     foreground = im_data[labels.reshape(im_data.shape) == 1]
 
+    #print( threshold, len(background), len(foreground) )
+
     return {
         'threshold': threshold,
         'background': background,
@@ -91,9 +93,11 @@ def main():
     parser.add_argument('-f', '--file', required=True, help="wave文件路径")
     parser.add_argument('-w', '--window', type=int, required=True, help="窗口宽度（样本数）")
     parser.add_argument('-s', '--sample_rate', type=int, help="手动指定采样率（Hz），如果不提供则从文件中读取")
+    parser.add_argument('-c', '--center_freq', type=float, help="zero frequency")
     args = parser.parse_args()
 
     # 读取wave文件; 从文件中读取采样率和数据
+    # /home/zw/site_data/ARCH/AQ_OL62ti_daily/20251219/AQ_OL62ti_wave_05.000000_20251219_100Hz_1.2E06.flac
     wave_file = args.file
     temp, extension = os.path.splitext( wave_file )
     if extension == '.wav':
@@ -106,9 +110,17 @@ def main():
     else:
         sample_rate, data = wavfile.read(args.file)  # 从文件中读取采样率和数据
 
+    center_freq = 0.0
+    if args.center_freq:
+        center_freq = args.center_freq
+
+    amp_factor = float( args.file.rsplit('_', 1)[-1].rsplit('.', 1)[0] )
+    if amp_factor < 1.:
+        amp_factor = 1.
+
     # 将IQ数据转换为复数形式
     if len(data.shape) > 1:
-        iq_signal = data[:, 0] + 1j * data[:, 1]  # I为第0列，Q为第1列
+        iq_signal = data[:, 0]/amp_factor + 1j * data[:, 1]/amp_factor  # I为第0列，Q为第1列
     else:
         raise ValueError("输入文件必须是双通道的IQ数据！")
 
@@ -119,9 +131,10 @@ def main():
     # 计算功率随时间变化
     power, time = calculate_power(iq_signal, window_size, step_size, sample_rate)
 
-    # 将功率值转换为瓦特并除以10^10，再转换为dBm
-    power_watt = power / 1e16 / 50.  # 转换为瓦特 V^2/R, R = 50 Ohm
-    power_dBm = power_to_dBm(power_watt)  # 转换为dBm
+    # 将功率值转换为瓦特，再转换为dBm
+    power_watt = power / 50.  # 转换为瓦特 V^2/R, R = 50 Ohm
+    #power_watt[power_watt < 1e-15] = 1e-15
+    power_dBm = power_to_dBm(power_watt) - 30  # 转换为dBm, then remove frontend gain
 
     # 将时间转换为小时（00到24）
     time_hours = time / 3600  # 将秒转换为小时
@@ -166,6 +179,7 @@ def main():
     cmap='gnuplot'
     cmap='magma'
     extent = [0, 24, freq[0], freq[-1]]  # 设置横坐标范围为0~24小时，纵坐标范围为频率范围
+    #extent = [0, 24, 0, 30]  # 设置横坐标范围为0~24小时，纵坐标范围为频率范围
     #im = ax2.imshow(fft_spectra.T, vmin=1E1, vmax=1E5, aspect='auto', origin='lower', extent=extent, cmap=cmap)
     #im = ax2.imshow(np.log10(fft_spectra.T), vmin=2.5, vmax=5., aspect='auto', origin='lower', extent=extent, cmap=cmap)
 
@@ -177,7 +191,7 @@ def main():
     background = cluster_result['background']
 
     p10 = np.nanpercentile(foreground, 50)
-    p90 = np.nanpercentile(foreground, 99) 
+    p90 = np.nanpercentile(foreground, 99)
     # 按 0.1 的间隔取整
     vmin = round(p10 * 1.1, 1)
     vmax = round(p10 + (p90-p10) * 1.5, 1)
@@ -191,8 +205,8 @@ def main():
     ax2.xaxis.set_major_locator(MultipleLocator(1))  # 每小时一个主刻度
     ax2.grid(True, which='major', linestyle='--', color='grey', linewidth=0.5)  # 显示主网格
 
-    ax2.set_ylim(-5, 5)  # 设置纵坐标范围为-5~5 Hz
-    #ax2.set_ylim(-10, 10)  # 设置纵坐标范围为-5~5 Hz
+    #ax2.set_ylim(-5, 5)  # 设置纵坐标范围为-5~5 Hz
+    ax2.set_ylim( center_freq-5., center_freq+5)  # 设置纵坐标范围为-5~5 Hz
 
     # 调整布局，为colorbar腾出空间
     plt.subplots_adjust(left=0.1, right=0.88, bottom=0.1, top=0.9, hspace=0.)  # 设置空白距离

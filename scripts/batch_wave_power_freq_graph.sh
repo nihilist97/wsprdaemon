@@ -29,8 +29,11 @@ cd ${SCRIPT_DIR}
 # 查找所有 .wav 文件并处理
 find "$base_path" -type f -name "*.wav" -o -name "*.flac"| while read -r wave_file; do
     echo "处理文件: $wave_file"
+    # for wspr/rx888 site
     #python3 wave_power_freq_graph.py -w 1024 -s 10 -f "$wave_file"
-    python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file"
+    #python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file"
+    # for Doppler/usrp site, center frequency = 20 Hz
+    python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file" -c 20
 
     # 获取生成的 .png 文件名
     png_file="${wave_file}.png"
