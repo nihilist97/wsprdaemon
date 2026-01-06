@@ -79,6 +79,9 @@ declare WSPR_BAND_LIST=(
 "DOP_49972   4997.2   W0"
 "DOP_500555  5005.548  W0"
 "DOP_600666  6006.661  W0"
+"DOP_cdut4   4279.29  W0"
+"DOP_cdut6   6279.29  W0"
+"DOP_cdut8   8279.29  W0"
 )
 
 ### Get the current value of a variable stored in the wsprdaemon.conf file without perturbing any currently defined .conf file variables in the calling function
