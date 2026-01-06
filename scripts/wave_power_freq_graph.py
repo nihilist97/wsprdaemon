@@ -40,7 +40,7 @@ def kmeans_separate_spectrum(im_data):
     }
 
 
-def calculate_power(iq_signal, window_size, step_size, sample_rate):
+def calculate_power_dBm(iq_signal, window_size, step_size, sample_rate):
     """
     计算IQ信号的功率随时间的变化
     :param iq_signal: 输入IQ信号（复数形式）
@@ -53,7 +53,16 @@ def calculate_power(iq_signal, window_size, step_size, sample_rate):
     for i in range(0, len(iq_signal) - window_size, step_size):
         window = iq_signal[i:i + window_size]
         window_power = np.mean(np.abs(window)**2)  # 计算窗口内信号的功率
-        power.append(window_power)
+
+        # 注意：数字域的功率转换为物理功率需要参考电平。
+        # 这里假设 1 代表 1 瓦特。
+        if window_power > 0:
+            power_dbm = 10 * np.log10(window_power * 1000)  # mW
+        else:
+            power_dbm = -np.inf # 处理无信号情况
+
+        power.append(power_dbm)
+
     time = np.arange(0, len(power)) * (step_size / sample_rate)  # 计算时间轴
     return np.array(power), time
 
@@ -96,27 +105,30 @@ def main():
     parser.add_argument('-c', '--center_freq', type=float, help="zero frequency")
     args = parser.parse_args()
 
-    # 读取wave文件; 从文件中读取采样率和数据
-    # /home/zw/site_data/ARCH/AQ_OL62ti_daily/20251219/AQ_OL62ti_wave_05.000000_20251219_100Hz_1.2E06.flac
-    wave_file = args.file
-    temp, extension = os.path.splitext( wave_file )
-    if extension == '.wav':
-        sample_rate, data = wavfile.read( wave_file )  # 从文件中读取采
-    if extension == '.flac':
-        data, sample_rate = soundfile.read( wave_file, dtype='int16')
-
-    if args.sample_rate:
-        sample_rate = args.sample_rate
-    else:
-        sample_rate, data = wavfile.read(args.file)  # 从文件中读取采样率和数据
-
     center_freq = 0.0
     if args.center_freq:
         center_freq = args.center_freq
 
+    # 读取wave文件; 从文件中读取采样率和数据
+    # /home/zw/site_data/ARCH/AQ_OL62ti_daily/20251219/AQ_OL62ti_wave_05.000000_20251219_100Hz_1.2E06.flac
     amp_factor = float( args.file.rsplit('_', 1)[-1].rsplit('.', 1)[0] )
+    pre_amp = 0.
     if amp_factor < 1.:
         amp_factor = 1.
+        pre_amp = 30.
+
+    wave_file = args.file
+    temp, extension = os.path.splitext( wave_file )
+    if extension == '.wav':
+        sample_rate, data = wavfile.read( wave_file )
+    if extension == '.flac':
+        data, sample_rate = soundfile.read( wave_file, dtype='int16')
+        # 转回 float32 进行信号处理（如 FFT）
+        # 注意：计算功率 int16 平方后很容易溢出 int16 范围，必须先转为 float 或 int64
+        data = data.astype(np.float32) / 32768.0
+
+    if args.sample_rate:
+        sample_rate = args.sample_rate
 
     # 将IQ数据转换为复数形式
     if len(data.shape) > 1:
@@ -129,42 +141,46 @@ def main():
     step_size = window_size // 2  # 步长为窗口大小的一半
 
     # 计算功率随时间变化
-    power, time = calculate_power(iq_signal, window_size, step_size, sample_rate)
+    power_dBm, time = calculate_power_dBm(iq_signal, window_size, step_size, sample_rate)
 
-    # 将功率值转换为瓦特，再转换为dBm
-    power_watt = power / 50.  # 转换为瓦特 V^2/R, R = 50 Ohm
-    #power_watt[power_watt < 1e-15] = 1e-15
-    power_dBm = power_to_dBm(power_watt) - 30  # 转换为dBm, then remove frontend gain
+    #power_dBm = power_to_dBm(power_watt) - pre_amp  # 转换为dBm, then remove pre amp gain
+    power_dBm -= pre_amp #remove pre amp gain
 
     # 将时间转换为小时（00到24）
     time_hours = time / 3600  # 将秒转换为小时
 
-    # 计算纵坐标范围（90%百分位数，并适当放宽）
-    lower_percentile = np.percentile(power_dBm, 5)  # 下界为5%百分位数
-    upper_percentile = np.percentile(power_dBm, 95)  # 上界为95%百分位数
-    margin = 20  # 放宽范围
-    y_min = lower_percentile - margin
-    y_max = upper_percentile + margin
+    # 过滤掉 NaN, inf, -inf
+    clean_dBm = power_dBm[np.isfinite(power_dBm)]
 
-    # 创建图形
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 4), sharex=True)  # 共享横坐标轴
-
-    # 绘制功率随时间变化的散点图
-    ax1.scatter(time_hours, power_dBm, s=6, color='RoyalBlue', label='Signal Power (dBm)')  # 散点图
-    ax1.set_ylabel('Power (dBm)')
-    ax1.set_title('Signal Power %s' % (os.path.basename(args.file)) )  # 标题显示文件名
-
-    # 设置横坐标刻度为每小时一格
-    ax1.xaxis.set_major_locator(MultipleLocator(1))  # 每小时一个主刻度
-    ax1.grid(True, which='major', linestyle='--', linewidth=0.5)  # 显示主网格
-
-    # 设置纵坐标范围
-    ax1.set_ylim(y_min, y_max)
-
-    # 设置横坐标范围为00到24小时
-    ax1.set_xlim(0, 24)
-
-    ax1.legend()
+    if clean_dBm.size > 0:
+        # 计算纵坐标范围（90%百分位数，并适当放宽）
+        lower_percentile = np.percentile(clean_dBm, 5)  # 下界为5%百分位数
+        upper_percentile = np.percentile(clean_dBm, 95)  # 上界为95%百分位数
+        margin = 20  # 放宽范围
+        y_min = lower_percentile - margin
+        y_max = upper_percentile + margin
+    
+        # 创建图形
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 4), sharex=True)  # 共享横坐标轴
+    
+        # 绘制功率随时间变化的散点图
+        ax1.scatter(time_hours, power_dBm, s=6, color='RoyalBlue', label='Signal Power (dBm)')  # 散点图
+        ax1.set_ylabel('Power (dBm)')
+        ax1.set_title('Signal Power %s' % (os.path.basename(args.file)) )  # 标题显示文件名
+    
+        # 设置横坐标刻度为每小时一格
+        ax1.xaxis.set_major_locator(MultipleLocator(1))  # 每小时一个主刻度
+        ax1.grid(True, which='major', linestyle='--', linewidth=0.5)  # 显示主网格
+    
+        # 设置纵坐标范围
+        ax1.set_ylim(y_min, y_max)
+    
+        # 设置横坐标范围为00到24小时
+        ax1.set_xlim(0, 24)
+    
+        ax1.legend()
+    else:
+        print( "no valid power dBm values" )
 
     # 计算FFT频谱
     fft_spectra, fft_time = calculate_fft(iq_signal, window_size, step_size, sample_rate)
@@ -183,7 +199,10 @@ def main():
     #im = ax2.imshow(fft_spectra.T, vmin=1E1, vmax=1E5, aspect='auto', origin='lower', extent=extent, cmap=cmap)
     #im = ax2.imshow(np.log10(fft_spectra.T), vmin=2.5, vmax=5., aspect='auto', origin='lower', extent=extent, cmap=cmap)
 
-    im_data = np.log10(fft_spectra.T)
+    #im_data = np.log10(fft_spectra.T)
+    # 假设我们关心的最小功率是 1e-10 noise floor
+    min_power = 1e-10
+    im_data = np.log10( np.clip(fft_spectra.T, min_power, None) )
 
     cluster_result = kmeans_separate_spectrum(im_data) 
     threshold = cluster_result['threshold']

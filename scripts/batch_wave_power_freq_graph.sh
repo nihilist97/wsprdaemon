@@ -1,5 +1,7 @@
 #!/bin/bash
 
+id="OQ_OL39ei"
+
 # 检查是否提供了日期参数
 if [ -z "$1" ]; then
     # 如果没有提供日期，则使用昨天的日期
@@ -12,8 +14,8 @@ fi
 echo $date
 
 # 定义基础路径
-base_path="$HOME/site_data/ARCH/AQ_OL62ti_daily/$date"
-target_dir="$HOME/site_data/ARCH/AQ_OL62ti_daily"
+base_path="$HOME/site_data/ARCH/${id}_daily/$date"
+target_dir="$HOME/site_data/ARCH/${id}_daily"
 
 # 检查目录是否存在
 if [ ! -d "$base_path" ]; then
@@ -31,9 +33,9 @@ find "$base_path" -type f -name "*.wav" -o -name "*.flac"| while read -r wave_fi
     echo "处理文件: $wave_file"
     # for wspr/rx888 site
     #python3 wave_power_freq_graph.py -w 1024 -s 10 -f "$wave_file"
-    #python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file"
+    python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file"
     # for Doppler/usrp site, center frequency = 20 Hz
-    python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file" -c 20
+    #python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file" -c 20
 
     # 获取生成的 .png 文件名
     png_file="${wave_file}.png"
