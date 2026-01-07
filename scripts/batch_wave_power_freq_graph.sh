@@ -1,6 +1,6 @@
 #!/bin/bash
 
-id="OQ_OL39ei"
+id="QIJ_DOP01"
 
 # 检查是否提供了日期参数
 if [ -z "$1" ]; then
@@ -33,9 +33,9 @@ find "$base_path" -type f -name "*.wav" -o -name "*.flac"| while read -r wave_fi
     echo "处理文件: $wave_file"
     # for wspr/rx888 site
     #python3 wave_power_freq_graph.py -w 1024 -s 10 -f "$wave_file"
-    python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file"
+    #python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file"
     # for Doppler/usrp site, center frequency = 20 Hz
-    #python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file" -c 20
+    /home/zw/wsprdaemon/scripts/venv/bin/python3 wave_power_freq_graph.py -w 2048 -s 100 -f "$wave_file" -c 20
 
     # 获取生成的 .png 文件名
     png_file="${wave_file}.png"
