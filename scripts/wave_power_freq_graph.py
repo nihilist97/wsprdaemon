@@ -30,8 +30,6 @@ def kmeans_separate_spectrum(im_data):
     background = im_data[labels.reshape(im_data.shape) == 0]
     foreground = im_data[labels.reshape(im_data.shape) == 1]
 
-    #print( threshold, len(background), len(foreground) )
-
     return {
         'threshold': threshold,
         'background': background,
@@ -205,15 +203,35 @@ def main():
     im_data = np.log10( np.clip(fft_spectra.T, min_power, None) )
 
     cluster_result = kmeans_separate_spectrum(im_data) 
-    threshold = cluster_result['threshold']
-    foreground = cluster_result['foreground']
-    background = cluster_result['background']
+    threshold   = cluster_result['threshold']
+    foreground  = cluster_result['foreground']
+    background  = cluster_result['background']
+    centers     = cluster_result['centers']
 
-    p10 = np.nanpercentile(foreground, 50)
+    print( threshold, len(foreground), len(background) )
+    print( centers )
+
+#    p10 = np.nanpercentile(foreground, 50)
     p90 = np.nanpercentile(foreground, 99)
-    # 按 0.1 的间隔取整
-    vmin = round(p10 * 1.1, 1)
-    vmax = round(p10 + (p90-p10) * 1.5, 1)
+#    factor = np.log10( len(foreground)/len( background) ) * 0.3
+#    #print( p10, p90, factor )
+#    vmin = np.nanpercentile(foreground, round(60*(1+factor)) )
+#    vmax = p90 + fg_width*(0.4+factor)
+
+    fg_width = p90 - centers[1]
+    center_width = centers[1] - centers[0]
+    factor = np.log10( center_width/fg_width ) * 0.5
+    print( factor )
+    vmin = np.nanpercentile(foreground, round(70*(1-factor)) )
+    vmax = p90 + fg_width*(0.6+factor)
+
+#    # 按 0.1 的间隔取整
+#    if factor > 0.:
+#        vmin = round(p10 + fg_width*0.2, 2)
+#        vmax = round(p90 + fg_width*(factor+0.3), 2)
+#    else:
+#        vmin = round(p10 + fg_width*factor, 2)
+#        vmax = round(p90 + fg_width*0.3, 2)
 
     #print( vmin, vmax )
     im = ax2.imshow(im_data, vmin=vmin, vmax=vmax, aspect='auto', origin='lower', extent=extent, cmap=cmap)
