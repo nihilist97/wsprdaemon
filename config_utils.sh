@@ -31,7 +31,7 @@
 ### The format of each entry is "BAND  TUNING_FREQUENCY DEFAULT_DECODE_MODES" where DEFAULT_DECODE_MODES is a colon-separated list of mode W (legacy WSPR) or F (FST4W) + packet length in minutes. 
 ###       e.g. "W2" == classic WSPR decode by the wsprd of a 2 minute long wav file
 
-declare VALID_MODE_LIST=( W0 W2 F2 F5 F15 F30 I1 J1 K1)
+declare VALID_MODE_LIST=( W0 W2 F2 F5 F15 F30 I1 J1 K1 L1)
 
 ### This is a list of the tuning frequencies for each band
 ### WSPR bands tune 1500 hertz below the center of the WSPR transmit band

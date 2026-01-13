@@ -1761,7 +1761,7 @@ function decoding_daemon() {
             wd_logger 1 "For WSPR packets of length ${returned_seconds} seconds for minutes ${wd_string}, got list of files ${comma_separated_files}"
             ### End of diagnostic code
 
-            if [[ ${receiver_modes_list[0]} =~ ^[IJK] ]]; then
+            if [[ ${receiver_modes_list[0]} =~ ^[IJKL] ]]; then
                 wd_logger 1 "We are configured to only record and archive IQ files"
                 ### Queue the wav file to a directory in the /dev/shrm/wsprdaemon file system.  The watchdog daemon calls a function every odd minute which
                 ### Compresses those wav files into files which are saved in non-volatile storage under ~/wsprdaemon
@@ -1783,7 +1783,10 @@ function decoding_daemon() {
                 local expected_samples
                 case ${receiver_modes_list[0]} in
                     I1)
-                        expected_samples=${WWV_IQ_SAMPLES_PER_MINUTE-1920000}          ### mode I1 is 16000 sps which is used to record WWV and CHU
+                        expected_samples=${WWV_IQ_SAMPLES_PER_MINUTE-1920000}          ### mode I1 is 16000 sps, 2 channels which is used to record WWV and CHU
+                        ;;
+                    L1)
+                        expected_samples=${DOP_IQ_SAMPLES_PER_MINUTE-960000}          ### mode L1 is 8000 sps, 2 channels, which is used to record DOP
                         ;;
                     J1)
                         expected_samples=5760000                                       ### mode J1 is 100000 sps which is used to record SUPERDARN signals
@@ -2253,7 +2256,7 @@ function decoding_daemon() {
             if [[ ${processed_wav_files} == "yes" ]]; then 
                 wd_logger 1 "Processed files '${wav_files}' concatenated into '${decoder_input_wav_filename}' for packet of length ${returned_seconds} seconds"
             else
-                wd_logger 1 "ERROR: created a wav file of ${returned_seconds}, but the conf file didn't specify a mode for that length"
+                wd_logger 1 "ERROR: created a wav file of ${returned_seconds} s, but the conf file didn't specify a mode for that length"
             fi
 
             ### Obtain wav and ADC overlaod information so they can be appended to the spot lines

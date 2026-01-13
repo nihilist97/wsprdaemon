@@ -341,7 +341,7 @@ function ka9q_recording_daemon()
 
      local verbosity_args_list=( -v -v -v -v )
      local ka9q_verbosity_args="${verbosity_args_list[@]:0:$(( ${verbosity} + ${WD_RECORD_EXTRA_VERBOSITY-0} ))}"
-     wd_logger 1 "Starting a new ' ${KA9Q_RADIO_WD_RECORD_CMD} ${ka9q_verbosity_args} -s ${receiver_rx_freq_hz} ${receiver_ip}' jobi in ${PWD}"
+     wd_logger 1 "Starting a new ' ${KA9Q_RADIO_WD_RECORD_CMD} ${ka9q_verbosity_args} -s ${receiver_rx_freq_hz} ${receiver_ip}' job in ${PWD}"
      ${KA9Q_RADIO_WD_RECORD_CMD} ${ka9q_verbosity_args} -s ${receiver_rx_freq_hz} ${receiver_ip} > wd-record.log 2>&1   ## wd-record prints to stderr, but we want it in wd-record.log
      rc=$?
      if [[ ${rc} -eq 0 ]]; then
