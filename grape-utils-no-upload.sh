@@ -18,10 +18,11 @@
 ###    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 declare    GRAPE_ARCHIVE_PRESERVE_DATES_LIST=( ${GRAPE_ARCHIVE_PRESERVE_DATES_LIST[@]-20240407 20240408 20240409} )    ### Preserve the flac files for the April 8th 2024 total eclipse +- 1 day
-declare -r GRAPE_TMP_DIR="/mnt/grape_drf_cache"                                  ### While creating a 24 hour 10 Hz IQ wav file, decompress the 1440 one minute wav files into this tmpfs file system
+declare -r GRAPE_TMP_DIR="/mnt/grape_drf_cache"                                     ### While creating a 24 hour IQ wav file, decompress the 1440 one minute wav files into this tmpfs file system
 declare -r GRAPE_TMP_DIR_SIZE="6G"      ### It needs 5.5G
-declare -r GRAPE_WAV_ARCHIVE_ROOT_PATH="${WSPRDAEMON_ROOT_DIR}/wav-archive.d"  ### Cache all 1440 one minute long, flac-compressed, 16000 IQ wav files in this dir tree
-declare -r WD_SILENT_FLAC_FILE_PATH="${WSPRDAEMON_ROOT_DIR}/silent_iq.flac"    ### A flac-compressed wav file of one minute of silence.  When a minute file is missing , hard link to this file
+declare -r GRAPE_WAV_ARCHIVE_ROOT_PATH="${WSPRDAEMON_ROOT_DIR}/wav-archive.d"       ### Cache all 1440 one-minute long, flac-compressed, IQ wav files in this dir tree
+declare -r WD_SILENT_FLAC_FILE_PATH="${WSPRDAEMON_ROOT_DIR}/silent_iq.flac"         ### A flac-compressed wav file of one minute of silence. Default for 16 kHz sampling rate. When a minute file is missing , hard link to this file
+declare -r WD_SILENT_FLAC_FILE_8k_PATH="${WSPRDAEMON_ROOT_DIR}/silent_iq_8k.flac"   ### A flac-compressed wav file of one minute of silence for 8 kHz sampling rate.
 declare -r MINUTES_PER_DAY=$(( 60 * 24 ))
 declare -r HOURS_LIST=( $(seq -f "%02g" 0 23) )
 declare -r MINUTES_LIST=( $(seq -f "%02g" 0 59) )
@@ -359,7 +360,7 @@ function upload_24hour_wavs_to_grape_drf_server() {
         fi
         local receiver_tmp_dir="$(<${wav2grape_stdout_file} )"
         if [[ -z "${receiver_tmp_dir}" ]]; then
-            wd_logger 1 "ERROR: flac decompressed files, but return a zero length name for its  receiver_tmp_dir"
+            wd_logger 1 "ERROR: flac decompressed files, but return a zero length name for its ${receiver_tmp_dir}"
             return 1
         fi
 
@@ -526,11 +527,11 @@ function grape_repair_band_flacs() {
                 wd_rm  ${flac_file}
             else
                 ### flac created the wav file
-                if soxi ${test_wav_file} | grep -q '960000 samples' ; then
+                if soxi ${test_wav_file} | grep -q -e '960000 samples' -e '480000 samples'; then    # for 16kHz or 8kHz sampling rate
                     wd_logger 2 "soxi reports ${test_wav_file} is OK"
                     (( ++good_wav_file_count ))
                 else
-                    wd_logger 1 "ERROR: flac returned success decompressing ${flac_file}, but soxi reported that the resulting wav file doesn't have the required 960000 samples (16kHz*60s)"
+                    wd_logger 1 "ERROR: flac returned success decompressing ${flac_file}, but soxi reported that the resulting wav file doesn't have the required 480000/960000 samples (8/16kHz*60s)"
                     local delete_it="yes"
                     if [[ ${GRAPE_AUTO_DELETE_BAD_FLACS} == "no" ]]; then
                         read -p "$(soxi ${test_wav_file}) Delete it [yN]? => " 
@@ -568,6 +569,19 @@ function grape_repair_band_flacs() {
     band_freq=${band_freq#*_}
     band_freq=${band_freq/_iq.flac/}
     wd_logger 2 "Found only ${#flac_file_list[@]} flac files in ${band_dir} so it needs repair. band_date=${band_date},  band_freq=${band_freq}"
+
+    silent_flac_file_path=""
+    sample_output=$(soxi ${flac_file_list[0]})
+    if echo "$sample_output" | grep -q -e '960000 samples'; then    # default 16 kHz sampling rate
+        silent_flac_file_path=${WD_SILENT_FLAC_FILE_PATH}
+    elif echo "$sample_output" | grep -q -e '480000 samples'; then  # 8 kHz
+        silent_flac_file_path=${WD_SILENT_FLAC_FILE_8k_PATH}
+    else
+        wd_logger 1 "Tested ${flac_file_list[0]}, but found sample number is not 480000/960000 (8/16 kHz)"
+        wd_logger 1 "${sample_output}"
+        return 0    # 0 means no files are corrected or filled
+    fi
+
     local silence_file_list=()
     local hour
     for hour in ${HOURS_LIST[@]} ; do
@@ -578,7 +592,9 @@ function grape_repair_band_flacs() {
             # if [[ ! -f ${expected_file_path} ]]; then
             if [[ ! "${flac_file_list[@]}" =~ ${expected_file_path} ]]; then
                 wd_logger 2 "Can't find expected IQ file ${expected_file_path}, so link the 1 minute of silence file in its place"
-                ln -s ${WD_SILENT_FLAC_FILE_PATH}  ${expected_file_path}
+
+                ln -s ${silent_flac_file_path}  ${expected_file_path}
+
                 silence_file_list+=( ${expected_file_path##*/} )
             else
                 wd_logger 2 "Found expected IQ file ${expected_file_path}"
@@ -719,7 +735,7 @@ function grape_create_wav_file()
         rm -rf  ${GRAPE_TMP_DIR}/*
         grape_repair_band_flacs ${flac_file_dir}
         rc=$?
-        if [[ ${rc} -ne 0 ]]; then
+        if [[ ${rc} -eq 0 ]]; then
             wd_logger 1 "ERROR: grape_repair_band_flacs ${flac_file_dir} =>  ${rc}, but no repairs were done"
         else
             wd_logger 1 "grape_repair_band_flacs ${flac_file_dir} reported it repaired by cleaning corrupt files and adding ${rc} (or more) silence files"
