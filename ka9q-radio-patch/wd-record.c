@@ -493,7 +493,6 @@ void input_loop(){
                 int16_t const * const samples = (int16_t *)dp;
                 size -= (dp - buffer);
                 int const samp_count = size / sizeof(*samples); // number of individual audio samples (not frames)
-                fprintf(stderr, "%d", sp->channels);
                 int const frame_count = samp_count / sp->channels; // 1 every sample period (e.g., 4 for stereo 16-bit)
                 off_t const offset = rtp_process(&sp->rtp_state,&rtp,frame_count); // rtp timestamps refer to frames
 
