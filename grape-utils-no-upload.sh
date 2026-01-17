@@ -199,12 +199,13 @@ function archive_24hour_wavs_to_data_dir() {
                     wd_logger 1 "WARNING: 'grape_create_wav_file ${band_dir}' => ${rc}"
                 fi
             fi 
-            if [[  -f ${band_24hour_wav_file} ]]; then
-                wd_logger 1 "Found wav file ${band_24hour_wav_file}"
-                (( ++wav_file_count ))
-            else
+
+            if [[ ! -f ${band_24hour_wav_file} ]]; then
                  wd_logger 1 "ERROR: Neither found nor could create ${band_24hour_wav_file}"
             fi
+
+            wd_logger 1 "Found wav file ${band_24hour_wav_file}"
+            (( ++wav_file_count ))
 
             # copy iq file to archive dir
             local band_name="${band_dir##*/}"           # WWV_10
@@ -215,8 +216,8 @@ function archive_24hour_wavs_to_data_dir() {
             rc=$?
             if [[ ${rc} -ne 0 ]]; then
                 wd_logger 1 "ERROR: cp ${band_24hour_wav_file} ${archive_iq_file}"
-                exit 1
-                return ${rc}
+                #exit 1
+                #return ${rc}
             else
                  wd_logger 1 "Archive one daily iq file to ${archive_iq_file}"
             fi
@@ -242,164 +243,164 @@ function archive_24hour_wavs_to_data_dir() {
 ###  been converted to DRF and uploaded to the GRAPE server
 ### Returns:  0 on nothing to do or success on uploading
 
-function upload_24hour_wavs_to_grape_drf_server() {
-    local reporter_wav_root_dir=$( realpath $1 )
-    wd_logger 2 "Upload bands for reporter ${reporter_wav_root_dir##*/}"
-
-    if [[ ! -d ${reporter_wav_root_dir} ]]; then
-        wd_logger 1 "ERROR:  reporter_wav_root_dir='${reporter_wav_root_dir}' does not exist"
-        return 1
-    fi
-    local reporter_wav_root_dir_list=( ${reporter_wav_root_dir//\// } )
-    local reporter_wav_root_dir_date="${reporter_wav_root_dir_list[-2]}"
-    local current_date=$(TZ=UTC printf "%(%Y%m%d)T" -1)
-    if [[ "${reporter_wav_root_dir_date}" == "${current_date}" ]]; then
-        wd_logger 2 "Skipping work on flac files for today's date ${current_date}"
-        return 0
-    fi
-    wd_logger 2 "On date '${current_date}' checking for date '${reporter_wav_root_dir_date}' bands which need a wav file to be created and then convert them to DRF and upload to the GRAPE server"
-
-    local reporter_upload_complete_file_name="${reporter_wav_root_dir}/${UPLOAD_TO_PSWS_SERVER_COMPLETED_FILE_NAME}"
-
-    if [[ -f ${reporter_upload_complete_file_name} ]]; then
-        wd_logger 2  "File ${reporter_upload_complete_file_name} exists, so upload of wav files has already been successful"
-        return 0
-    fi
-    wd_logger 1 "File ${reporter_upload_complete_file_name} does not exist, so create the wav files and upload the DRF files"
-
-    ### On the WD client the flac and 24hour.wav files are cached in the non-volitile  file system which has the format:
-    ### ...../wsprdaemon/wav-archive.d/<DATE>/<WSPR_REPORTER_ID>_<WSPR_REPORTER_GRID>/<WD_RECEIVER_NAME>@<PSWS_SITE_ID>_<PSWS_INSTRUMENT_NUMBER>/<BAND>
-    ### WSPR_REPORTER_ID, WSPR_REPORTER_GRID and WD_RECEIVER and WD_RECEIVER_NAME are assigned by the WD client and entered into the wsprdaemon.conf file
-    ### Each WD client can support multiple WSPR_REPORTER_IDs, each of which can have the same or a unique WSPR_REPORTER_GRID
-    ### Each WSPR_REPORTER_ID+WSPR_REPORTER_GRID is associated with one or more WSPR_RECIEVER_NAMEs, and each of those will support one or more BANDS
-    ###
-    local dir_path_list=( ${reporter_wav_root_dir//\// } )
-    local wav_date=${dir_path_list[-2]}
-    local reporter_info=${dir_path_list[-1]}
-    local reporter_id=${reporter_info%_*}         ### Chop off the _GRID to get the WSPR reporter id
-    local reporter_grid=${reporter_info#*_}       ### Chop off the REPROTER_ID to get the grid
-
-    ### Search each receiver for wav files
-    local receiver_dir
-    local receiver_dir_list=( $( find -L "${reporter_wav_root_dir}" -mindepth 1 -maxdepth 1 -type d | sort ) )
-    if [[ ${#receiver_dir_list[@]} -eq 0 ]]; then
-        wd_logger 1  "There are no receiver dirs under ${reporter_wav_root_dir}"
-        return 1
-    fi
-    for receiver_dir in ${receiver_dir_list[@]} ; do
-        local receiver_info="${receiver_dir##*/}"
-        local receiver_name="${receiver_info%@*}"
-        local pswsnetwork_info="${receiver_info#*@}"
-        local psws_station_id="${pswsnetwork_info%_*}"
-        local psws_instrument_id="${pswsnetwork_info#*_}"
-
-        if [[ ! "${receiver_info}" =~ @ ]] || [[ -z "${psws_station_id}" ]] || [[ -z "${psws_instrument_id}" ]]; then
-            wd_logger 1 "ERROR: directory ${receiver_dir} doesn't contain the '@' which is part of a PSWS ID OR the psws_station_id or the psws_instrument_id couldn't be extracted from it, so skip uploading of it"
-            continue
-        fi
-
-        wd_logger 1  "Checking and cleaning up the band directories for receiver ${receiver_dir}"
-        wd_logger 2  "date: ${wav_date}- site: ${reporter_id} - receiver_name: $receiver_name - psws_station_id: $psws_station_id - psws_instrument_id: $psws_instrument_id"
-
-        ### Cleanup the flacs and create 24hour.wavs in all the bands
-        local wav_file_count=0
-        local band_dir
-        for band_dir in $( find -L ${receiver_dir} -mindepth 1 -type d ); do
-            if [[ ! "${band_dir}" =~ WWV|CHU|K_BEACON|DOP ]]; then
-                wd_logger 2 "Band '${band_dir}' is not a WWV|CHU|K_BEACON|DOP band, so skip to next band"
-                continue
-            fi
-            wd_logger 2 "Checking WWV|CHU|K_BEACON|DOP band dir ${band_dir}"
-            local band_24hour_wav_file="${band_dir}/iq_24hour_10sps.wav"
-            if [[ -f ${band_24hour_wav_file} ]]; then
-                 if soxi ${band_24hour_wav_file} | grep -q '864000 samples' ; then
-                     wd_logger 2 "Found a good existing ${band_24hour_wav_file}"
-                  else
-                     wd_logger 1 "ERROR: Found wav file ${band_24hour_wav_file} doesn't have the expected 864,000 samples in a 10Hz 24 hour wav file, so deleting it"
-                     wd_rm ${band_24hour_wav_file}
-                 fi
-            fi
-            if !  [[ -f ${band_24hour_wav_file} ]]; then
-                wd_logger 1 "Creating ${band_24hour_wav_file}"
-                grape_repair_band_flacs ${band_dir}
-                rc=$?
-                if [[ ${rc} -ne 0 ]]; then
-                    wd_logger 1 "WARNING: 'grape_repair_band_flacs ${band_dir}' => ${rc}"
-                fi
-                grape_create_wav_file  ${band_dir}
-                rc=$?
-                if [[ ${rc} -ne 0 ]]; then
-                    wd_logger 1 "WARNING: 'grape_create_wav_file ${band_dir}' => ${rc}"
-                fi
-            fi 
-            if [[  -f ${band_24hour_wav_file} ]]; then
-                wd_logger 1 "Found wav file ${band_24hour_wav_file}"
-                (( ++wav_file_count ))
-            else
-                 wd_logger 1 "Neither found nor could create  ${band_24hour_wav_file}"
-            fi
-        done
-        if [[ ${wav_file_count} -eq 0 ]]; then
-            wd_logger 1 "WARNING: no wav files found or created for any bands, so skip DRF creation for this receiver/band"
-            continue
-        fi
-
-        wd_logger 1  "Creating the DRF file from ${wav_file_count} bands of wav files"
-
-        ### Create the DRF files for all the bands on this receiver
-        rm -rf  ${GRAPE_TMP_DIR}/*          ## the -f suppresses an error when there are no files in that dir
-        umask 022    ### Ensures that our 'sftp put .' doesn't enable the group access to the PSWS home directory and thus disable ssh autologin
-        local wav2grape_stdout_file="${GRAPE_TMP_DIR}/${WAV2GRAPE_PYTHON_CMD##*/}.stdout"
-        local wav2grape_stderr_file="${GRAPE_TMP_DIR}/${WAV2GRAPE_PYTHON_CMD##*/}.stderr"
-        ${WAV2GRAPE_PYTHON_CMD} -i "${receiver_dir}" -o "${GRAPE_TMP_DIR}" > ${wav2grape_stdout_file}  2> ${wav2grape_stderr_file}
-        rc=$?
-        if [[ ${rc} -ne 0 ]]; then
-            wd_logger 1 "ERROR: '${WAV2GRAPE_PYTHON_CMD} -i $receiver_dir -o $GRAPE_TMP_DIR' =${rc}:\n$(<${wav2grape_stderr_file})"
-            exit 1
-            return ${rc}
-        fi
-        local receiver_tmp_dir="$(<${wav2grape_stdout_file} )"
-        if [[ -z "${receiver_tmp_dir}" ]]; then
-            wd_logger 1 "ERROR: flac decompressed files, but return a zero length name for its ${receiver_tmp_dir}"
-            return 1
-        fi
-
-        wd_logger 2  "The DRF files have been created under ${receiver_tmp_dir}.  Now upload them.."
-
-        local psws_trigger_dir_name="c${receiver_tmp_dir##*/}_\#${psws_instrument_id}_\#$(date -u +%Y-%m%dT%H-%M)"       ### The root directory of where our DRF file tree will go on th ePSWS server
-        wd_logger 1 "Uploading our DRF directory tree from local dir '${receiver_tmp_dir%/*}' and then creating the trigger dir '${psws_trigger_dir_name}' on our site's home dir on  the PSWS server"
-
-        local sftp_cmds_file="${WSPRDAEMON_TMP_DIR}/sftp.cmds" 
-        echo "put -r . 
-              mkdir ${psws_trigger_dir_name}" > ${sftp_cmds_file}
-        cd "${receiver_tmp_dir%/*}"
-        rc=$?
-        if [[ ${rc} -ne 0 ]]; then
-            cd - > /dev/null
-            wd_logger 1 "ERROR: 'cd ${receiver_tmp_dir%/*}' => ${rc}"
-            return ${rc}
-        fi
-
-        ### Ensure that sftp can auto-login to this server's usesr account on the PSWS server
-        grape_upload_public_key
-        rc=$?
-        if [[ ${rc} -ne 0 ]]; then
-            wd_logger 1 "ERROR: can't setup auto login which is needed for uploads"
-            return ${rc}
-        fi
- 
-        local sftp_stderr_file="${GRAPE_TMP_DIR}/sftp.out"
-        sftp -v -l ${SFTP_BW_LIMIT_KBPS-1000} -b ${sftp_cmds_file} "${psws_station_id}@${PSWS_SERVER_URL}" >& ${sftp_stderr_file}
-        rc=$?
-        cd - > /dev/null
-        if [[ ${rc} -ne 0 ]]; then
-            wd_logger 1 "ERROR: 'sftp -l ${SFTP_BW_LIMIT_KBPS-1000} -b ${sftp_cmds_file} ${psws_station_id}@${PSWS_SERVER_URL}' -> ${rc}:\n$(<${sftp_stderr_file})"
-            return ${rc}
-        fi
-    done
-    touch "${reporter_upload_complete_file_name}"
-    wd_logger 1  "Upload was successful, so create '${reporter_upload_complete_file_name}'"
-}
+#function upload_24hour_wavs_to_grape_drf_server() {
+#    local reporter_wav_root_dir=$( realpath $1 )
+#    wd_logger 2 "Upload bands for reporter ${reporter_wav_root_dir##*/}"
+#
+#    if [[ ! -d ${reporter_wav_root_dir} ]]; then
+#        wd_logger 1 "ERROR:  reporter_wav_root_dir='${reporter_wav_root_dir}' does not exist"
+#        return 1
+#    fi
+#    local reporter_wav_root_dir_list=( ${reporter_wav_root_dir//\// } )
+#    local reporter_wav_root_dir_date="${reporter_wav_root_dir_list[-2]}"
+#    local current_date=$(TZ=UTC printf "%(%Y%m%d)T" -1)
+#    if [[ "${reporter_wav_root_dir_date}" == "${current_date}" ]]; then
+#        wd_logger 2 "Skipping work on flac files for today's date ${current_date}"
+#        return 0
+#    fi
+#    wd_logger 2 "On date '${current_date}' checking for date '${reporter_wav_root_dir_date}' bands which need a wav file to be created and then convert them to DRF and upload to the GRAPE server"
+#
+#    local reporter_upload_complete_file_name="${reporter_wav_root_dir}/${UPLOAD_TO_PSWS_SERVER_COMPLETED_FILE_NAME}"
+#
+#    if [[ -f ${reporter_upload_complete_file_name} ]]; then
+#        wd_logger 2  "File ${reporter_upload_complete_file_name} exists, so upload of wav files has already been successful"
+#        return 0
+#    fi
+#    wd_logger 1 "File ${reporter_upload_complete_file_name} does not exist, so create the wav files and upload the DRF files"
+#
+#    ### On the WD client the flac and 24hour.wav files are cached in the non-volitile  file system which has the format:
+#    ### ...../wsprdaemon/wav-archive.d/<DATE>/<WSPR_REPORTER_ID>_<WSPR_REPORTER_GRID>/<WD_RECEIVER_NAME>@<PSWS_SITE_ID>_<PSWS_INSTRUMENT_NUMBER>/<BAND>
+#    ### WSPR_REPORTER_ID, WSPR_REPORTER_GRID and WD_RECEIVER and WD_RECEIVER_NAME are assigned by the WD client and entered into the wsprdaemon.conf file
+#    ### Each WD client can support multiple WSPR_REPORTER_IDs, each of which can have the same or a unique WSPR_REPORTER_GRID
+#    ### Each WSPR_REPORTER_ID+WSPR_REPORTER_GRID is associated with one or more WSPR_RECIEVER_NAMEs, and each of those will support one or more BANDS
+#    ###
+#    local dir_path_list=( ${reporter_wav_root_dir//\// } )
+#    local wav_date=${dir_path_list[-2]}
+#    local reporter_info=${dir_path_list[-1]}
+#    local reporter_id=${reporter_info%_*}         ### Chop off the _GRID to get the WSPR reporter id
+#    local reporter_grid=${reporter_info#*_}       ### Chop off the REPROTER_ID to get the grid
+#
+#    ### Search each receiver for wav files
+#    local receiver_dir
+#    local receiver_dir_list=( $( find -L "${reporter_wav_root_dir}" -mindepth 1 -maxdepth 1 -type d | sort ) )
+#    if [[ ${#receiver_dir_list[@]} -eq 0 ]]; then
+#        wd_logger 1  "There are no receiver dirs under ${reporter_wav_root_dir}"
+#        return 1
+#    fi
+#    for receiver_dir in ${receiver_dir_list[@]} ; do
+#        local receiver_info="${receiver_dir##*/}"
+#        local receiver_name="${receiver_info%@*}"
+#        local pswsnetwork_info="${receiver_info#*@}"
+#        local psws_station_id="${pswsnetwork_info%_*}"
+#        local psws_instrument_id="${pswsnetwork_info#*_}"
+#
+#        if [[ ! "${receiver_info}" =~ @ ]] || [[ -z "${psws_station_id}" ]] || [[ -z "${psws_instrument_id}" ]]; then
+#            wd_logger 1 "ERROR: directory ${receiver_dir} doesn't contain the '@' which is part of a PSWS ID OR the psws_station_id or the psws_instrument_id couldn't be extracted from it, so skip uploading of it"
+#            continue
+#        fi
+#
+#        wd_logger 1  "Checking and cleaning up the band directories for receiver ${receiver_dir}"
+#        wd_logger 2  "date: ${wav_date}- site: ${reporter_id} - receiver_name: $receiver_name - psws_station_id: $psws_station_id - psws_instrument_id: $psws_instrument_id"
+#
+#        ### Cleanup the flacs and create 24hour.wavs in all the bands
+#        local wav_file_count=0
+#        local band_dir
+#        for band_dir in $( find -L ${receiver_dir} -mindepth 1 -type d ); do
+#            if [[ ! "${band_dir}" =~ WWV|CHU|K_BEACON|DOP ]]; then
+#                wd_logger 2 "Band '${band_dir}' is not a WWV|CHU|K_BEACON|DOP band, so skip to next band"
+#                continue
+#            fi
+#            wd_logger 2 "Checking WWV|CHU|K_BEACON|DOP band dir ${band_dir}"
+#            local band_24hour_wav_file="${band_dir}/iq_24hour_10sps.wav"
+#            if [[ -f ${band_24hour_wav_file} ]]; then
+#                 if soxi ${band_24hour_wav_file} | grep -q '864000 samples' ; then
+#                     wd_logger 2 "Found a good existing ${band_24hour_wav_file}"
+#                  else
+#                     wd_logger 1 "ERROR: Found wav file ${band_24hour_wav_file} doesn't have the expected 864,000 samples in a 10Hz 24 hour wav file, so deleting it"
+#                     wd_rm ${band_24hour_wav_file}
+#                 fi
+#            fi
+#            if !  [[ -f ${band_24hour_wav_file} ]]; then
+#                wd_logger 1 "Creating ${band_24hour_wav_file}"
+#                grape_repair_band_flacs ${band_dir}
+#                rc=$?
+#                if [[ ${rc} -ne 0 ]]; then
+#                    wd_logger 1 "WARNING: 'grape_repair_band_flacs ${band_dir}' => ${rc}"
+#                fi
+#                grape_create_wav_file  ${band_dir}
+#                rc=$?
+#                if [[ ${rc} -ne 0 ]]; then
+#                    wd_logger 1 "WARNING: 'grape_create_wav_file ${band_dir}' => ${rc}"
+#                fi
+#            fi 
+#            if [[  -f ${band_24hour_wav_file} ]]; then
+#                wd_logger 1 "Found wav file ${band_24hour_wav_file}"
+#                (( ++wav_file_count ))
+#            else
+#                 wd_logger 1 "Neither found nor could create  ${band_24hour_wav_file}"
+#            fi
+#        done
+#        if [[ ${wav_file_count} -eq 0 ]]; then
+#            wd_logger 1 "WARNING: no wav files found or created for any bands, so skip DRF creation for this receiver/band"
+#            continue
+#        fi
+#
+#        wd_logger 1  "Creating the DRF file from ${wav_file_count} bands of wav files"
+#
+#        ### Create the DRF files for all the bands on this receiver
+#        rm -rf  ${GRAPE_TMP_DIR}/*          ## the -f suppresses an error when there are no files in that dir
+#        umask 022    ### Ensures that our 'sftp put .' doesn't enable the group access to the PSWS home directory and thus disable ssh autologin
+#        local wav2grape_stdout_file="${GRAPE_TMP_DIR}/${WAV2GRAPE_PYTHON_CMD##*/}.stdout"
+#        local wav2grape_stderr_file="${GRAPE_TMP_DIR}/${WAV2GRAPE_PYTHON_CMD##*/}.stderr"
+#        ${WAV2GRAPE_PYTHON_CMD} -i "${receiver_dir}" -o "${GRAPE_TMP_DIR}" > ${wav2grape_stdout_file}  2> ${wav2grape_stderr_file}
+#        rc=$?
+#        if [[ ${rc} -ne 0 ]]; then
+#            wd_logger 1 "ERROR: '${WAV2GRAPE_PYTHON_CMD} -i $receiver_dir -o $GRAPE_TMP_DIR' =${rc}:\n$(<${wav2grape_stderr_file})"
+#            exit 1
+#            return ${rc}
+#        fi
+#        local receiver_tmp_dir="$(<${wav2grape_stdout_file} )"
+#        if [[ -z "${receiver_tmp_dir}" ]]; then
+#            wd_logger 1 "ERROR: flac decompressed files, but return a zero length name for its ${receiver_tmp_dir}"
+#            return 1
+#        fi
+#
+#        wd_logger 2  "The DRF files have been created under ${receiver_tmp_dir}.  Now upload them.."
+#
+#        local psws_trigger_dir_name="c${receiver_tmp_dir##*/}_\#${psws_instrument_id}_\#$(date -u +%Y-%m%dT%H-%M)"       ### The root directory of where our DRF file tree will go on th ePSWS server
+#        wd_logger 1 "Uploading our DRF directory tree from local dir '${receiver_tmp_dir%/*}' and then creating the trigger dir '${psws_trigger_dir_name}' on our site's home dir on  the PSWS server"
+#
+#        local sftp_cmds_file="${WSPRDAEMON_TMP_DIR}/sftp.cmds" 
+#        echo "put -r . 
+#              mkdir ${psws_trigger_dir_name}" > ${sftp_cmds_file}
+#        cd "${receiver_tmp_dir%/*}"
+#        rc=$?
+#        if [[ ${rc} -ne 0 ]]; then
+#            cd - > /dev/null
+#            wd_logger 1 "ERROR: 'cd ${receiver_tmp_dir%/*}' => ${rc}"
+#            return ${rc}
+#        fi
+#
+#        ### Ensure that sftp can auto-login to this server's usesr account on the PSWS server
+#        grape_upload_public_key
+#        rc=$?
+#        if [[ ${rc} -ne 0 ]]; then
+#            wd_logger 1 "ERROR: can't setup auto login which is needed for uploads"
+#            return ${rc}
+#        fi
+# 
+#        local sftp_stderr_file="${GRAPE_TMP_DIR}/sftp.out"
+#        sftp -v -l ${SFTP_BW_LIMIT_KBPS-1000} -b ${sftp_cmds_file} "${psws_station_id}@${PSWS_SERVER_URL}" >& ${sftp_stderr_file}
+#        rc=$?
+#        cd - > /dev/null
+#        if [[ ${rc} -ne 0 ]]; then
+#            wd_logger 1 "ERROR: 'sftp -l ${SFTP_BW_LIMIT_KBPS-1000} -b ${sftp_cmds_file} ${psws_station_id}@${PSWS_SERVER_URL}' -> ${rc}:\n$(<${sftp_stderr_file})"
+#            return ${rc}
+#        fi
+#    done
+#    touch "${reporter_upload_complete_file_name}"
+#    wd_logger 1  "Upload was successful, so create '${reporter_upload_complete_file_name}'"
+#}
 
 function grape_test_ssh_auto_login() {
     local station_id=$1
