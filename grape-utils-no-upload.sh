@@ -23,6 +23,8 @@ declare -r GRAPE_TMP_DIR_SIZE="6G"      ### It needs 5.5G
 declare -r GRAPE_WAV_ARCHIVE_ROOT_PATH="${WSPRDAEMON_ROOT_DIR}/wav-archive.d"       ### Cache all 1440 one-minute long, flac-compressed, IQ wav files in this dir tree
 declare -r WD_SILENT_FLAC_FILE_PATH="${WSPRDAEMON_ROOT_DIR}/silent_iq.flac"         ### A flac-compressed wav file of one minute of silence. Default for 16 kHz sampling rate. When a minute file is missing , hard link to this file
 declare -r WD_SILENT_FLAC_FILE_8k_PATH="${WSPRDAEMON_ROOT_DIR}/silent_iq_8k.flac"   ### A flac-compressed wav file of one minute of silence for 8 kHz sampling rate.
+declare -r WD_SILENT_FLAC_FILE_4k_PATH="${WSPRDAEMON_ROOT_DIR}/silent_iq_4k.flac"
+declare -r WD_SILENT_FLAC_FILE_1k_PATH="${WSPRDAEMON_ROOT_DIR}/silent_iq_1k.flac"
 declare -r MINUTES_PER_DAY=$(( 60 * 24 ))
 declare -r HOURS_LIST=( $(seq -f "%02g" 0 23) )
 declare -r MINUTES_LIST=( $(seq -f "%02g" 0 59) )
@@ -177,7 +179,6 @@ function archive_24hour_wavs_to_data_dir() {
             wd_logger 2 "Checking WWV|CHU|K_BEACON|DOP band dir ${band_dir}"
             local band_24hour_wav_file="${band_dir}/${GRAPE_24_HOUR_10_HZ_WAV_FILE_NAME}"
             if [[ -f ${band_24hour_wav_file} ]]; then
-                 #if soxi ${band_24hour_wav_file} | grep -q '864000 samples' ; then
                  if soxi ${band_24hour_wav_file} | grep -q '8640000 samples' ; then
                      wd_logger 2 "Found a good existing ${band_24hour_wav_file}"
                   else
@@ -528,11 +529,11 @@ function grape_repair_band_flacs() {
                 wd_rm  ${flac_file}
             else
                 ### flac created the wav file
-                if soxi ${test_wav_file} | grep -q -e '960000 samples' -e '480000 samples'; then    # for 16kHz or 8kHz sampling rate
+                if soxi ${test_wav_file} | grep -q -e '960000 samples' -e '480000 samples' -e '240000 samples' -e '60000 samples'; then    # for 16/8/4/1 kHz sampling rate
                     wd_logger 2 "soxi reports ${test_wav_file} is OK"
                     (( ++good_wav_file_count ))
                 else
-                    wd_logger 1 "ERROR: flac returned success decompressing ${flac_file}, but soxi reported that the resulting wav file doesn't have the required 480000/960000 samples (8/16kHz*60s)"
+                    wd_logger 1 "ERROR: flac returned success decompressing ${flac_file}, but soxi reported that the resulting wav file doesn't have the required 6/24/48/960000 samples (1/4/8/16kHz*60s)"
                     local delete_it="yes"
                     if [[ ${GRAPE_AUTO_DELETE_BAD_FLACS} == "no" ]]; then
                         read -p "$(soxi ${test_wav_file}) Delete it [yN]? => " 
@@ -577,8 +578,12 @@ function grape_repair_band_flacs() {
         silent_flac_file_path=${WD_SILENT_FLAC_FILE_PATH}
     elif echo "$sample_output" | grep -q -e '480000 samples'; then  # 8 kHz
         silent_flac_file_path=${WD_SILENT_FLAC_FILE_8k_PATH}
+    elif echo "$sample_output" | grep -q -e '240000 samples'; then  # 4 kHz
+        silent_flac_file_path=${WD_SILENT_FLAC_FILE_4k_PATH}
+    elif echo "$sample_output" | grep -q -e '60000 samples'; then   # 1 kHz
+        silent_flac_file_path=${WD_SILENT_FLAC_FILE_1k_PATH}
     else
-        wd_logger 1 "Tested ${flac_file_list[0]}, but found sample number is not 480000/960000 (8/16 kHz)"
+        wd_logger 1 "Tested ${flac_file_list[0]}, but found sample number is not 6/24/48/960000 (1/4/8/16 kHz)"
         wd_logger 1 "${sample_output}"
         return 0    # 0 means no files are corrected or filled
     fi
