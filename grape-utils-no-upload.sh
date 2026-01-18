@@ -597,7 +597,7 @@ function grape_repair_band_flacs() {
             local expected_file_path=${band_dir}/${expected_file_name}
             # if [[ ! -f ${expected_file_path} ]]; then
             if [[ ! "${flac_file_list[@]}" =~ ${expected_file_path} ]]; then
-                wd_logger 2 "Can't find expected IQ file ${expected_file_path}, so link the 1 minute of silence file in its place"
+                wd_logger 2 "Can't find expected IQ file ${expected_file_path}, so link the 1 minute of silence file ${silent_flac_file_path}"
 
                 ln -s ${silent_flac_file_path}  ${expected_file_path}
 
@@ -610,11 +610,12 @@ function grape_repair_band_flacs() {
 
     local silence_files_added=${#silence_file_list[@]}
     if [[ ${silence_files_added} -gt 0 ]] ; then
+        wd_logger 1 "Added ${silence_files_added} silence files, using ${silent_flac_file_path}"
         echo "${silence_file_list[@]}" > silence_file_list.txt
         wd_logger 2 "Created ${silence_files_added} silence files:  $( < silence_file_list.txt)"
         if [[ ${silence_files_added} -ge ${GRAPE_ERROR_RETURN_BASE} ]]; then
             silence_files_added=$(( ${GRAPE_ERROR_RETURN_BASE} - 1 ))
-            wd_logger 1 "Added ${#silence_file_list[@]} silence files, more than can be returned from a bash function.  So returning instead ${silence_files_added}"
+            wd_logger 1 "Added ${#silence_file_list[@]} silence files, more than can be returned from a bash function. So returning instead ${silence_files_added}"
         fi
     fi
     return ${silence_files_added}
