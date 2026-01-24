@@ -1787,8 +1787,8 @@ function decoding_daemon() {
                         ;;
                     L1)
                         #expected_samples=${DOP_IQ_SAMPLES_PER_MINUTE-960000}           ### mode L1 is 8000 sps, 2 channels, which is used to record DOP
-                        expected_samples=${DOP_IQ_SAMPLES_PER_MINUTE-480000}            # if L1 is 4000 sps
-                        #expected_samples=${DOP_IQ_SAMPLES_PER_MINUTE-120000}           # if L1 is 1000 sps
+                        #expected_samples=${DOP_IQ_SAMPLES_PER_MINUTE-480000}           # if L1 is 4000 sps
+                        expected_samples=${DOP_IQ_SAMPLES_PER_MINUTE-120000}            # if L1 is 1000 sps
                         ;;
                     J1)
                         expected_samples=5760000                                       ### mode J1 is 100000 sps which is used to record SUPERDARN signals
