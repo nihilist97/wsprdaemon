@@ -8,13 +8,15 @@ Requires=network-online.target
 
 [Service]
 Nice=10
-User=recordings
-Group=radio
+User=zw
+Group=zw
 Type=simple
 EnvironmentFile=/etc/radio/%i-pskreporter.conf
 PermissionsStartOnly=true
 CPUSchedulingPolicy=batch
-ExecStart=python3 /usr/local/bin/pskreporter-sender --callsign ${CALLSIGN} --locator ${LOCATOR} --antenna ${ANTENNA} ${FILE} ${MODE}
+WorkingDirectory=/home/zw/wsprdaemon/ftlib-pskreporter
+Environment="TZ=UTC"
+ExecStart=python3 /home/zw/wsprdaemon/ftlib-pskreporter/pskreporter-sender --callsign ${CALLSIGN} --locator ${LOCATOR} --antenna ${ANTENNA} ${FILE} ${MODE}
 Restart=always
 RestartSec=5
 TimeoutStopSec=10
