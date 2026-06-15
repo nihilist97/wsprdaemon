@@ -112,14 +112,14 @@ declare TURN_ISLAND_LOWPASS_FILTER_VALUES="DEFAULT:0.3,20:0.7,17:0.7:15:0.9,12:1
 declare TURN_ISLAND_LP_AND_SHELF_FILTER_VALUES="2200:19.3,630:19.3,160:18.3,80:16,80eu:16,60:13.5,60eu:13.5,40:11.5,30:8.4,22:7,20:6.1,17:4.6,15:3.9,12:3.5,10:4.7"
 
 declare RECEIVER_LIST=(
-        "KA9Q_0                     wspr-pcm.local     N0DAO         OL09ac    NULL  #ANTENNA: wire dipole T2FD"
+        "KA9Q_0                     wspr-pcm.local     N0DAO         OL09ac    NULL  #ANTENNA: wire dipole"
                                                                                           ### A receiver name which starts with 'KA9Q_...' will decode wav files supplied by the KA9Q-radio multicast RTP streams
                                                                                           ### In WD 3.1.0 WD assumes all WSPR audio streams come from a local instance of KA9Q
                                                                                           ### which by default outputs all the WSPR audio stream on the multicast DNS address wspr-pcm.local
 #        "KA9Q_1                    wspr1-pcm.local     AI6VN         CM88mc    NULL"      ### Multicast streams from remote KA9Q receivers can be sources, and not just RX-888s
 #        "KA9Q_0_WSPR_IQ              wspr-iq.local     AI6VN         CM88mc    NULL"      ### Multicast IQ streams from the local RX888 + KA9Q receiver
-        "KA9Q_0_WWV                   wwv-iq.local     N0DAO         OL09ac    NULL  #ANTENNA: wire dipole T2FD"
-        "KA9Q_0_DOP                   dop-iq.local     N0DAO         OL09ac    NULL  #ANTENNA: wire dipole T2FD"
+        "KA9Q_0_WWV                   wwv-iq.local     N0DAO         OL09ac    NULL  #ANTENNA: wire dipole"
+        "KA9Q_0_DOP                   dop-iq.local     N0DAO         OL09ac    NULL  #ANTENNA: wire dipole"
                                                                                           ### Those streams are not enabled by default in the radiod.conf file. So if you configue an IQ rx job,
                                                                                           ### you will need to set 'disabled = no' for one or both in radiod@rx888-wsprdaemon.conf and then restart radiod
 
@@ -185,7 +185,7 @@ declare WSPR_SCHEDULE_ka9q=(
 declare WSPR_SCHEDULE_ka9q_wwv=(
     "00:00   KA9Q_0,2200,W2:F2:F5:F15:F30  KA9Q_0,630,W2:F2:F5  KA9Q_0,160,W2:F2:F5   KA9Q_0,80,W2:F2:F5    KA9Q_0,80eu,W2:F2:F5  KA9Q_0,60,W2:F2:F5  KA9Q_0,60eu,W2:F2:F5  KA9Q_0,40,W2:F2:F5 
              KA9Q_0,30,W2:F2:F5            KA9Q_0,22,W2         KA9Q_0,20,W2:F2:F5    KA9Q_0,17,W2:F2:F5    KA9Q_0,15,W2:F2:F5    KA9Q_0,12,W2:F2:F5  KA9Q_0,10,W2:F2:F5
-             KA9Q_0_WWV,WWV_2_5,L1         KA9Q_0_WWV,WWV_5,L1  KA9Q_0_WWV,WWV_10,L1  KA9Q_0_WWV,WWV_15,L1  
+             KA9Q_0_WWV,WWV_5,L1           KA9Q_0_WWV,WWV_10,L1 KA9Q_0_WWV,WWV_15,L1  
              KA9Q_0_DOP,DOP_49965,L1       KA9Q_0_DOP,DOP_49972,L1       KA9Q_0_DOP,DOP_cdut4,L1     KA9Q_0_DOP,DOP_cdut6,L1     KA9Q_0_DOP,DOP_cdut8,L1     KA9Q_0_DOP,DOP_cdut9,L1"
 )
 #             KA9Q_0_WWV,WWV_20,I1  KA9Q_0_WWV,WWV_25,I1
