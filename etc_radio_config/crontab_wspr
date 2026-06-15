@@ -1,0 +1,28 @@
+5 0 * * *               /home/zw/wsprdaemon/scripts/wspr_log2data.py -t ft8
+6 0 * * *               /home/zw/wsprdaemon/scripts/wspr_log2data.py -t ft4
+7 0 * * *               /home/zw/wsprdaemon/scripts/wspr_log2data.py -t wspr
+
+## check daemon status
+## /home/zw/wsprdaemon/wsprdaemon.sh -w s'
+## start all daemons
+## /home/zw/wsprdaemon/wsprdaemon.sh -w a'
+## start single daemon
+## /home/zw/wsprdaemon/wsprdaemon.sh -w 'a ka9q_web_daemon'
+#
+## /home/zw/wsprdaemon/wsprdaemon.sh -g t            # summary of all wave files
+## /home/zw/wsprdaemon/wsprdaemon.sh -g "u 20250320" # manually produce daily flac file
+
+#25 0 * * *              /home/zw/wsprdaemon/scripts/chongqing-batch_wave_power_freq_graph.sh
+
+4,19,34,49 * * * *      /home/zw/zw2_dop/zw2_uploader/cdut_wspr_flac_to_iq.py
+5,20,35,50 * * * *  /usr/bin/nice -n 19 python3 /home/zw/zw2_dop/zw2_uploader/cdut_data_uploader.py
+10 8 * * *	    /usr/bin/nice -n 19 python3 /home/zw/zw2_dop/zw2_uploader/cdut_data_uploader.py -d
+
+#3 0 * * *           /home/zw/zw2_dop/quicklook/zw2_magn_to_daily.py
+#4 0 * * *           /home/zw/zw2_dop/quicklook/zw2_wave_to_daily.py
+
+30 * * * *           /usr/bin/nice -n 19 /home/zw/zw2_dop/upload_linux/zw2_rsync_daily.py
+
+1 23 * * 2              /home/zw/zw2_dop/system/rm_old_site_data.sh
+
+*/3 * * * *	    /usr/bin/nice -n 19 /home/zw/zw2_dop/system/remote_call/remote_call.py
