@@ -67,8 +67,8 @@
 #
 ### Graphs  default to y-axis minimum of -175 dB to maximum of -105 dB.  X pixels default to 40, Y pixels default to 30.  If the graph of your system isn't pleasing, you can change the graph's appearance by
 ### uncommenting one or more of these variables and changing their values
-NOISE_GRAPHS_Y_MIN=-140
-NOISE_GRAPHS_Y_MAX=-90
+NOISE_GRAPHS_Y_MIN=-130
+NOISE_GRAPHS_Y_MAX=-70
 # NOISE_GRAPHS_X_PIXEL=40
 # NOISE_GRAPHS_Y_PIXEL=30
 SIGNAL_LEVEL_LOCAL_GRAPHS="yes"
