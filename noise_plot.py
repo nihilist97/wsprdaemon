@@ -31,7 +31,7 @@ y_db_hi_arg=int(sys.argv[7])
 x_pixel_arg=int(sys.argv[8])
 y_pixel_arg=int(sys.argv[9])
 
-# print ( "y_db_low_arg=%d, y_db_hi_arg=%d, x_pixel_arg=%d, y_pixel_arg=%d" % (y_db_low_arg, y_db_hi_arg, x_pixel_arg, y_pixel_arg) )
+#print ( "y_db_low_arg=%d, y_db_hi_arg=%d, x_pixel_arg=%d, y_pixel_arg=%d" % (y_db_low_arg, y_db_hi_arg, x_pixel_arg, y_pixel_arg) )
 
 # read in the reporter-specific calibration file and print out
 # if one didn't exist the bash script would have created one
@@ -54,7 +54,7 @@ x_pixel=x_pixel_arg
 y_pixel=y_pixel_arg
 my_dpi=50         # set dpi and size for plot - these values are largest I can get on Pi window, resolution is good
 fig = plt.figure(figsize=(x_pixel, y_pixel), dpi=my_dpi)
-fig.subplots_adjust(hspace=0.4, wspace=0.4)
+fig.subplots_adjust(hspace=0.3, wspace=0.2)
 plt.rcParams.update({'font.size': 18})
 
 # get, then set, start and stop time in UTC for use in overall title of charts
