@@ -77,10 +77,10 @@ declare WSPR_BAND_LIST=(
 "K_BEACON_7_4      7039.4  K1"
 "DOP_49965   4996.5   W0"
 "DOP_49972   4997.2   W0"
-"DOP_500555  5005.548  W0"
-"DOP_600666  6006.661  W0"
 "DOP_cdut4   4279.29  W0"
+"DOP_cdut5   5279.29  W0"
 "DOP_cdut6   6279.29  W0"
+"DOP_cdut7   7279.293 W0"
 "DOP_cdut8   8279.29  W0"
 "DOP_cdut9   9279.29  W0"
 )
