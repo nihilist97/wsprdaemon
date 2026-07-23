@@ -101,11 +101,16 @@ def main():
     parser.add_argument('-w', '--window', type=int, required=True, help="窗口宽度（样本数）")
     parser.add_argument('-s', '--sample_rate', type=int, help="手动指定采样率（Hz），如果不提供则从文件中读取")
     parser.add_argument('-c', '--center_freq', type=float, help="zero frequency")
+    parser.add_argument('-b', '--bandwidth_freq', type=float, help="bandwidth of plot")
     args = parser.parse_args()
 
     center_freq = 0.0
     if args.center_freq:
         center_freq = args.center_freq
+
+    bandwidth_freq = 10.0
+    if args.bandwidth_freq:
+        bandwidth_freq = args.bandwidth_freq
 
     # 读取wave文件; 从文件中读取采样率和数据
     # /home/zw/site_data/ARCH/AQ_OL62ti_daily/20251219/AQ_OL62ti_wave_05.000000_20251219_100Hz_1.2E06.flac
@@ -243,7 +248,7 @@ def main():
     ax2.grid(True, which='major', linestyle='--', color='grey', linewidth=0.5)  # 显示主网格
 
     #ax2.set_ylim(-5, 5)  # 设置纵坐标范围为-5~5 Hz
-    ax2.set_ylim( center_freq-5., center_freq+5)  # 设置纵坐标范围为-5~5 Hz
+    ax2.set_ylim( center_freq-bandwidth_freq, center_freq+bandwidth_freq)  # 设置纵坐标范围为-5~5 Hz
 
     # 调整布局，为colorbar腾出空间
     plt.subplots_adjust(left=0.1, right=0.88, bottom=0.1, top=0.9, hspace=0.)  # 设置空白距离
@@ -257,7 +262,7 @@ def main():
 
     plt.savefig( args.file+'.png', dpi=150, bbox_inches='tight')
 
-    plt.show()
+    #plt.show()
 
 
 if __name__ == "__main__":
