@@ -1,5 +1,7 @@
 .*.swp
 *.deb
+*.log
+*.pid
 save
 uploads.d
 expected.jobs
