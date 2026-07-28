@@ -187,7 +187,7 @@ declare WSPR_SCHEDULE_ka9q_wwv=(
              KA9Q_0,30,W2:F2:F5            KA9Q_0,22,W2         KA9Q_0,20,W2:F2:F5    KA9Q_0,17,W2:F2:F5    KA9Q_0,15,W2:F2:F5    KA9Q_0,12,W2:F2:F5  KA9Q_0,10,W2:F2:F5
              KA9Q_0_WWV,WWV_5,L1           KA9Q_0_WWV,WWV_10,L1 KA9Q_0_WWV,WWV_15,L1  
              KA9Q_0_DOP,DOP_49965,L1       KA9Q_0_DOP,DOP_49972,L1       
-             KA9Q_0_DOP,DOP_cdut5,L1       KA9Q_0_DOP,DOP_cdut6,L1     KA9Q_0_DOP,DOP_cdut8,L1    KA9Q_0_DOP,DOP_cdut9,L1"
+             KA9Q_0_DOP,DOP_cdut5,L1       KA9Q_0_DOP,DOP_cdut6,L1     KA9Q_0_DOP,DOP_cdut7,L1      KA9Q_0_DOP,DOP_cdut8,L1    KA9Q_0_DOP,DOP_cdut9,L1"
 )
 #             KA9Q_0_WWV,WWV_20,I1  KA9Q_0_WWV,WWV_25,I1
 #             KA9Q_0_DOP,DOP_49965,I1       KA9Q_0_DOP,DOP_49972,I1"
